@@ -16,6 +16,8 @@ export default function ImageToolPage() {
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskResults, setTaskResults] = useState<Record<string, string[]>>({});
+  const [downloadingAll, setDownloadingAll] = useState(false);
 
   const handleGenerate = async (data: {
     model: any;
@@ -71,6 +73,61 @@ export default function ImageToolPage() {
 
   const removeTask = (taskId: string) => {
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    setTaskResults((prev) => {
+      const newResults = { ...prev };
+      delete newResults[taskId];
+      return newResults;
+    });
+  };
+
+  const updateTaskResults = (taskId: string, imageUrls: string[]) => {
+    setTaskResults((prev) => ({
+      ...prev,
+      [taskId]: imageUrls,
+    }));
+  };
+
+  const downloadImage = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error("下载失败:", err);
+    }
+  };
+
+  const downloadAllImages = async () => {
+    setDownloadingAll(true);
+
+    let imageIndex = 1;
+    for (const task of tasks) {
+      const imageUrls = taskResults[task.id];
+      if (imageUrls && imageUrls.length > 0) {
+        for (const url of imageUrls) {
+          await downloadImage(url, `image-${imageIndex}.png`);
+          imageIndex++;
+          // 延迟一下，避免同时下载太多
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+      }
+    }
+
+    setDownloadingAll(false);
+  };
+
+  const getTotalImageCount = () => {
+    return Object.values(taskResults).reduce(
+      (total, urls) => total + urls.length,
+      0
+    );
   };
 
   return (
@@ -100,12 +157,28 @@ export default function ImageToolPage() {
               <h2 className="text-xl font-bold">
                 任务列表 ({tasks.length})
               </h2>
-              <button
-                onClick={() => setTasks([])}
-                className="text-xs px-3 py-1 border border-gray-700 hover:border-white transition-colors"
-              >
-                清空全部
-              </button>
+              <div className="flex gap-2">
+                {getTotalImageCount() > 0 && (
+                  <button
+                    onClick={downloadAllImages}
+                    disabled={downloadingAll}
+                    className="text-sm px-4 py-2 bg-white text-black hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-600 transition-colors font-medium"
+                  >
+                    {downloadingAll
+                      ? "下载中..."
+                      : `一键下载全部 (${getTotalImageCount()} 张)`}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setTasks([]);
+                    setTaskResults({});
+                  }}
+                  className="text-xs px-3 py-1 border border-gray-700 hover:border-white transition-colors"
+                >
+                  清空全部
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-6">
@@ -134,7 +207,13 @@ export default function ImageToolPage() {
                     </button>
                   </div>
 
-                  <AutoTaskQuery apiKey={apiKey} taskId={task.id} />
+                  <AutoTaskQuery
+                    apiKey={apiKey}
+                    taskId={task.id}
+                    onResultsUpdate={(imageUrls) =>
+                      updateTaskResults(task.id, imageUrls)
+                    }
+                  />
                 </div>
               ))}
             </div>

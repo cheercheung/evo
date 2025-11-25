@@ -8,12 +8,14 @@ interface AutoTaskQueryProps {
   apiKey: string;
   taskId: string;
   onComplete?: () => void;
+  onResultsUpdate?: (imageUrls: string[]) => void;
 }
 
 export default function AutoTaskQuery({
   apiKey,
   taskId,
   onComplete,
+  onResultsUpdate,
 }: AutoTaskQueryProps) {
   const [taskData, setTaskData] = useState<TaskQueryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,11 @@ export default function AutoTaskQuery({
         const client = new EvolinkClient(apiKey);
         const response = await client.queryTask(taskId);
         setTaskData(response);
+
+        // 更新结果到父组件
+        if (response.results && response.results.length > 0 && onResultsUpdate) {
+          onResultsUpdate(response.results);
+        }
 
         // 如果任务完成，停止轮询
         if (response.status === "completed" || response.status === "failed") {
@@ -48,7 +55,7 @@ export default function AutoTaskQuery({
     const interval = setInterval(queryTask, 3000);
 
     return () => clearInterval(interval);
-  }, [taskId, apiKey, onComplete]);
+  }, [taskId, apiKey, onComplete, onResultsUpdate]);
 
   // 自动下载图片到本地
   const downloadImage = async (url: string, index: number) => {
