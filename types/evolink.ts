@@ -72,3 +72,24 @@ export interface ErrorResponse {
   };
 }
 
+// File Upload Types
+export interface FileUploadResponse {
+  success: boolean;
+  code: number;
+  msg: string;
+  data: FileData;
+}
+
+export interface FileData {
+  file_id: string;
+  file_name: string;
+  original_name: string;
+  file_size: number;
+  mime_type: string;
+  upload_path: string;
+  file_url: string;
+  download_url: string;
+  upload_time: string;
+  expires_at: string;
+}
+

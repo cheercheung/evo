@@ -2,8 +2,10 @@
 
 import React, { useState } from "react";
 import { MODELS, SIZES, QUALITIES, type Model, type Size, type Quality } from "@/types/evolink";
+import ImageUploader from "./ImageUploader";
 
 interface ImageGenerationFormProps {
+  apiKey: string;
   onSubmit: (data: {
     model: Model;
     prompt: string;
@@ -18,6 +20,7 @@ interface ImageGenerationFormProps {
 }
 
 export default function ImageGenerationForm({
+  apiKey,
   onSubmit,
   loading,
   error,
@@ -32,7 +35,13 @@ export default function ImageGenerationForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ model, prompt, size, quality, imageUrls, callbackUrl });
+
+    // 过滤掉空的 URL
+    const filteredUrls = imageUrls.filter((url) => url.trim() !== "");
+
+    console.log("提交的图片 URLs:", filteredUrls);
+
+    onSubmit({ model, prompt, size, quality, imageUrls: filteredUrls, callbackUrl });
   };
 
   const addImageUrlField = () => {
@@ -118,11 +127,50 @@ export default function ImageGenerationForm({
         />
       </div>
 
+      {/* Image Upload */}
+      <div className="flex flex-col gap-2">
+        <label className="text-xs text-gray-400">
+          上传参考图片（可选，最多 10 张）
+        </label>
+        <ImageUploader
+          apiKey={apiKey}
+          onUploadSuccess={(fileUrl) => {
+            console.log("上传成功，图片 URL:", fileUrl);
+
+            // 过滤掉空字符串，然后添加新的 URL
+            const nonEmptyUrls = imageUrls.filter((url) => url.trim() !== "");
+            if (nonEmptyUrls.length < 10) {
+              const newUrls = [...nonEmptyUrls, fileUrl];
+              console.log("更新后的 imageUrls:", newUrls);
+              setImageUrls(newUrls);
+            }
+          }}
+        />
+      </div>
+
+      {/* Current Image URLs Summary */}
+      {imageUrls.filter((url) => url.trim() !== "").length > 0 && (
+        <div className="text-xs bg-blue-950/30 border border-blue-800 rounded px-3 py-2">
+          <div className="text-blue-300 font-semibold mb-1">
+            ✓ 当前参考图片列表（{imageUrls.filter((url) => url.trim() !== "").length} 张）：
+          </div>
+          <div className="flex flex-col gap-1">
+            {imageUrls
+              .filter((url) => url.trim() !== "")
+              .map((url, idx) => (
+                <div key={idx} className="text-blue-400 truncate text-[10px]">
+                  {idx + 1}. {url}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Image URLs */}
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
           <label className="text-xs text-gray-400">
-            参考图片 URL 列表 image_urls（可选，最多 10 张）
+            或手动输入参考图片 URL（可选，最多 10 张）
           </label>
           <button
             type="button"

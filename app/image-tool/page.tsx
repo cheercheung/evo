@@ -94,6 +94,7 @@ export default function ImageToolPage() {
 
         {/* Image Generation Form */}
         <ImageGenerationForm
+          apiKey={apiKey}
           onSubmit={handleGenerate}
           loading={genLoading}
           error={genError}
