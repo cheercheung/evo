@@ -5,7 +5,7 @@ import { EvolinkClient } from "@/lib/evolink-client";
 import SimpleImageGenerationForm from "@/components/SimpleImageGenerationForm";
 import AutoTaskQuery from "@/components/AutoTaskQuery";
 
-export default function ImageToolPage() {
+export default function SimpleImageToolPage() {
   const apiKey = process.env.NEXT_PUBLIC_EVOLINK_API_KEY || "";
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
