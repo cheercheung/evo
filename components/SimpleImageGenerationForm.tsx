@@ -222,13 +222,6 @@ export default function SimpleImageGenerationForm({
           {error}
         </div>
       )}
-
-      {/* Task ID */}
-      {taskId && (
-        <div className="px-4 py-3 bg-green-900/20 border border-green-900 text-green-400 text-sm">
-          任务已创建：{taskId}
-        </div>
-      )}
     </form>
   );
 }
