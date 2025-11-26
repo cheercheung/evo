@@ -1,107 +1,137 @@
 # Evolink Image Generation Tool
 
-基于 Next.js 的 Nano Banana 2 图片生成和任务查询工具。
+基于 Next.js 的 AI 图片生成工具，支持多任务并行处理。
 
-## 功能特性
+## ✨ 功能特性
 
-- ✅ 完整的图片生成 API 参数支持（model, prompt, size, quality, image_urls, callback_url）
-- ✅ 异步任务创建和查询
-- ✅ 实时任务状态展示
-- ✅ 生成图片预览
-- ✅ 完整的 TypeScript 类型支持
-- ✅ 专业的组件化架构
-- ✅ Tailwind CSS 样式
+- 🎨 **极简黑白设计** - 纯黑白配色，现代简洁
+- 🚀 **多任务并行** - 同时运行多个生成任务，互不影响
+- 📤 **拖拽上传** - 支持拖拽和点击上传参考图片
+- 🔄 **自动查询** - 自动轮询任务状态，实时显示进度
+- 📥 **一键下载** - 批量下载所有生成的图片
+- 🎯 **横向选择** - 所有参数使用按钮选择，直观易用
+- 🔐 **环境变量** - API Key 安全存储在 .env.local
+- 📱 **响应式设计** - 完美适配各种屏幕尺寸
+- 💾 **自动保存** - 图片自动下载到本地
+- ⚡ **TypeScript** - 完整的类型支持
 
-## 项目结构
+## 📁 项目结构
 
 ```
 evo/
-├── app/                      # Next.js App Router
-│   ├── image-tool/          # 图片工具页面
-│   │   └── page.tsx
-│   ├── layout.tsx           # 根布局
-│   ├── page.tsx             # 首页（重定向）
-│   └── globals.css          # 全局样式
-├── components/              # React 组件
-│   ├── ApiKeyInput.tsx      # API Key 输入组件
-│   ├── ImageGenerationForm.tsx  # 图片生成表单
-│   └── TaskQueryForm.tsx    # 任务查询表单
-├── lib/                     # 工具库
-│   └── evolink-client.ts    # Evolink API 客户端
-├── types/                   # TypeScript 类型定义
-│   └── evolink.ts           # Evolink API 类型
-├── doc.md                   # 图片生成 API 文档
-├── query.md                 # 任务查询 API 文档
+├── app/                                    # Next.js App Router
+│   ├── image-tool/                        # 图片工具页面
+│   │   └── page.tsx                       # 主页面（多任务管理）
+│   ├── layout.tsx                         # 根布局
+│   ├── page.tsx                           # 首页（重定向）
+│   └── globals.css                        # 全局样式（黑白主题）
+├── components/                            # React 组件
+│   ├── SimpleImageGenerationForm.tsx      # 简洁图片生成表单
+│   ├── AutoTaskQuery.tsx                  # 自动任务查询组件
+│   ├── ApiKeyInput.tsx                    # API Key 输入组件
+│   ├── ImageGenerationForm.tsx            # 完整图片生成表单
+│   ├── ImageUploader.tsx                  # 图片上传组件
+│   └── TaskQueryForm.tsx                  # 任务查询表单
+├── lib/                                   # 工具库
+│   └── evolink-client.ts                  # Evolink API 客户端
+├── types/                                 # TypeScript 类型定义
+│   └── evolink.ts                         # Evolink API 类型
+├── .env.example                           # 环境变量示例
+├── .env.local                             # 环境变量（本地，不提交）
+├── .node-version                          # Node.js 版本指定
+├── Dockerfile                             # Docker 部署配置
+├── doc.md                                 # 图片生成 API 文档
+├── query.md                               # 任务查询 API 文档
+├── fileupload.md                          # 文件上传 API 文档
 └── package.json
 ```
 
-## 快速开始
+## 🚀 快速开始
 
-### 1. 安装依赖
+### 1. 克隆项目
+
+```bash
+git clone https://github.com/your-username/evo.git
+cd evo
+```
+
+### 2. 安装依赖
 
 ```bash
 npm install
 ```
 
-### 2. 配置 API Key（推荐）
+### 3. 配置环境变量
 
-在项目根目录创建 `.env.local` 文件（如果还没有的话），并添加你的 API Key：
+复制 `.env.example` 文件为 `.env.local`：
 
 ```bash
-# .env.local
-NEXT_PUBLIC_EVOLINK_API_KEY=your-api-key-here
+cp .env.example .env.local
 ```
 
-从 [Evolink API Key 管理页面](https://evolink.ai/dashboard/keys) 获取你的 API Key，替换 `your-api-key-here`。
+编辑 `.env.local` 文件，填入你的 API Key：
 
-> **注意**: `.env.local` 文件已经在 `.gitignore` 中，不会被提交到 Git，保证你的 API Key 安全。
+```bash
+NEXT_PUBLIC_EVOLINK_API_KEY=sk-your-api-key-here
+```
 
-### 3. 启动开发服务器
+> 💡 从 [Evolink 控制台](https://evolink.ai/dashboard/keys) 获取你的 API Key
+
+> 🔒 `.env.local` 文件已在 `.gitignore` 中，不会被提交到 Git
+
+### 4. 启动开发服务器
 
 ```bash
 npm run dev
 ```
 
-### 4. 访问应用
+### 5. 访问应用
 
-打开浏览器访问 [http://localhost:3000](http://localhost:3000)
+打开浏览器访问 [http://localhost:3000/image-tool](http://localhost:3000/image-tool)
 
-## 使用说明
+## 📖 使用说明
 
-### 1. 配置 API Key
+### 1️⃣ 选择参数
 
-**方式一：使用环境变量（推荐）**
+- **模型**: 点击选择 `nano-banana-2-lite` 或 `gemini-3-pro-image-preview`
+- **尺寸**: 点击选择图片比例（auto, 1:1, 16:9, 4:3 等 11 种）
+- **质量**: 点击选择 1K / 2K / 4K
 
-在 `.env.local` 文件中设置：
-```bash
-NEXT_PUBLIC_EVOLINK_API_KEY=your-api-key-here
+### 2️⃣ 输入提示词
+
+在文本框中描述你想生成的图片，例如：
+```
+一只可爱的橘猫坐在窗台上，阳光洒在它身上，温暖的午后氛围
 ```
 
-**方式二：在页面中输入**
+### 3️⃣ 上传参考图片（可选）
 
-如果没有设置环境变量，可以在页面顶部的输入框中手动输入 API Key。
+- **拖拽上传**: 直接拖拽图片到虚线框内
+- **点击上传**: 点击虚线框选择本地图片
+- 支持多张图片，最多 10 张
+- 支持格式：JPEG, PNG, GIF, WebP
 
-### 2. 创建图片生成任务
+### 4️⃣ 生成图片
 
-填写以下参数：
+点击"生成图片"按钮，任务会自动添加到任务列表并开始运行。
 
-- **模型 (model)**: 选择 `nano-banana-2-lite` 或 `gemini-3-pro-image-preview`
-- **尺寸 (size)**: 选择图片尺寸比例（auto, 1:1, 16:9 等）
-- **质量 (quality)**: 选择图片质量（1K, 2K, 4K）
-- **提示词 (prompt)**: 描述你想生成的图片（必填）
-- **参考图片 URL (image_urls)**: 可选，最多 10 张参考图片
-- **回调地址 (callback_url)**: 可选，任务完成后的 HTTPS 回调地址
+### 5️⃣ 查看结果
 
-点击"创建生成任务"按钮，系统会返回一个任务 ID。
+- ✅ 任务自动查询，每 3 秒更新一次状态
+- ✅ 完成后自动显示生成的图片
+- ✅ 可以单张下载或批量下载
 
-### 3. 查询任务状态
+### 6️⃣ 多任务并行
 
-使用返回的任务 ID（或手动输入），点击"查询任务"按钮查看：
+- 可以连续点击多次"生成图片"
+- 所有任务同时在后台运行
+- 每个任务独立显示状态和结果
+- 点击"一键下载全部"批量保存所有图片
 
-- 任务状态（pending, processing, completed, failed）
-- 任务进度（0-100%）
-- 生成的图片（完成后）
-- 完整的 JSON 响应
+### 7️⃣ 任务管理
+
+- **移除单个任务**: 点击任务卡片右上角的"移除"按钮
+- **清空全部任务**: 点击任务列表标题旁的"清空全部"按钮
 
 ## API 文档
 
