@@ -11,8 +11,13 @@ interface Task {
   prompt: string;
 }
 
+const CORRECT_PASSWORD = "lyj";
+
 export default function ImageToolPage() {
   const apiKey = process.env.NEXT_PUBLIC_EVOLINK_API_KEY || "";
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -129,6 +134,56 @@ export default function ImageToolPage() {
       0
     );
   };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === CORRECT_PASSWORD) {
+      setIsAuthenticated(true);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+    }
+  };
+
+  // 密码验证页面
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center p-8">
+        <div className="w-full max-w-sm">
+          <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2 text-center">
+              <h1 className="text-2xl font-bold">请输入密码</h1>
+              <p className="text-sm text-gray-500">输入正确密码后开始使用</p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError(false);
+                }}
+                placeholder="请输入密码"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 text-white placeholder-gray-500 focus:border-white focus:outline-none"
+                autoFocus
+              />
+              {passwordError && (
+                <p className="text-sm text-red-500">密码错误，请重试</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-white text-black font-medium hover:bg-gray-200 transition-colors"
+            >
+              确认
+            </button>
+          </form>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-black text-white p-8">
