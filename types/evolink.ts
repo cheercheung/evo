@@ -5,10 +5,16 @@ export const SIZES = ["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "
 export const QUALITIES = ["1K", "2K", "4K"] as const;
 export const TASK_STATUSES = ["pending", "processing", "completed", "failed"] as const;
 
+// Z-Image specific constants
+export const Z_IMAGE_MODELS = ["z-image-turbo"] as const;
+export const Z_IMAGE_SIZES = ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "1:2", "2:1"] as const;
+
 export type Model = typeof MODELS[number];
 export type Size = typeof SIZES[number];
 export type Quality = typeof QUALITIES[number];
 export type TaskStatus = typeof TASK_STATUSES[number];
+export type ZImageModel = typeof Z_IMAGE_MODELS[number];
+export type ZImageSize = typeof Z_IMAGE_SIZES[number];
 
 // Image Generation Request (POST /v1/images/generations)
 export interface ImageGenerationRequest {
@@ -17,6 +23,16 @@ export interface ImageGenerationRequest {
   size?: Size;
   quality?: Quality;
   image_urls?: string[];
+  callback_url?: string;
+}
+
+// Z-Image Generation Request (POST /v1/images/generations)
+export interface ZImageGenerationRequest {
+  model: ZImageModel;
+  prompt: string;
+  size?: ZImageSize;
+  seed?: number;
+  nsfw_check?: boolean;
   callback_url?: string;
 }
 

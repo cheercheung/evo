@@ -4,6 +4,7 @@ import type {
   TaskQueryResponse,
   ErrorResponse,
   FileUploadResponse,
+  ZImageGenerationRequest,
 } from "@/types/evolink";
 
 const API_BASE_URL = "https://api.evolink.ai";
@@ -102,6 +103,51 @@ export class EvolinkClient {
     });
 
     console.log("发送到 API 的请求数据:", cleanedRequest);
+
+    // 使用代理避免 CORS
+    if (USE_PROXY) {
+      console.log("🔄 使用代理模式");
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cleanedRequest),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error?.message || `API Error: ${response.status}`
+        );
+      }
+
+      return data as ImageGenerationResponse;
+    }
+
+    return this.request<ImageGenerationResponse>("/v1/images/generations", {
+      method: "POST",
+      body: JSON.stringify(cleanedRequest),
+    });
+  }
+
+  /**
+   * Create a Z-Image generation task
+   * POST /v1/images/generations
+   */
+  async createZImageGeneration(
+    request: ZImageGenerationRequest
+  ): Promise<ImageGenerationResponse> {
+    // Remove undefined fields
+    const cleanedRequest = { ...request };
+    Object.keys(cleanedRequest).forEach((key) => {
+      if (cleanedRequest[key as keyof typeof cleanedRequest] === undefined) {
+        delete cleanedRequest[key as keyof typeof cleanedRequest];
+      }
+    });
+
+    console.log("发送到 Z-Image API 的请求数据:", cleanedRequest);
 
     // 使用代理避免 CORS
     if (USE_PROXY) {
