@@ -193,12 +193,10 @@ export default function ImageToolPage() {
         <div className="flex flex-col gap-2 border-b border-gray-800 pb-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">图片生成</h1>
-            <Link
-              href="/z-image"
-              className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors"
-            >
-              切换到 Z-Image
-            </Link>
+            <div className="flex gap-2">
+              <Link href="/nb-cover" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">NB 封面</Link>
+              <Link href="/z-image" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">Z-Image</Link>
+            </div>
           </div>
           <p className="text-sm text-gray-500">
             使用 AI 生成高质量图片 · 支持多任务并行
