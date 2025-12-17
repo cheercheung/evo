@@ -9,12 +9,26 @@ export const TASK_STATUSES = ["pending", "processing", "completed", "failed"] as
 export const Z_IMAGE_MODELS = ["z-image-turbo"] as const;
 export const Z_IMAGE_SIZES = ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "1:2", "2:1"] as const;
 
+// WAN2.6 Video Generation constants
+export const VIDEO_MODELS = ["wan2.6-text-to-video"] as const;
+export const VIDEO_ASPECT_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"] as const;
+export const VIDEO_QUALITIES = ["720p", "1080p"] as const;
+export const VIDEO_DURATIONS = [5, 10, 15] as const;
+export const VIDEO_SHOT_TYPES = ["single", "multi"] as const;
+
 export type Model = typeof MODELS[number];
 export type Size = typeof SIZES[number];
 export type Quality = typeof QUALITIES[number];
 export type TaskStatus = typeof TASK_STATUSES[number];
 export type ZImageModel = typeof Z_IMAGE_MODELS[number];
 export type ZImageSize = typeof Z_IMAGE_SIZES[number];
+
+// WAN2.6 Video Types
+export type VideoModel = typeof VIDEO_MODELS[number];
+export type VideoAspectRatio = typeof VIDEO_ASPECT_RATIOS[number];
+export type VideoQuality = typeof VIDEO_QUALITIES[number];
+export type VideoDuration = typeof VIDEO_DURATIONS[number];
+export type VideoShotType = typeof VIDEO_SHOT_TYPES[number];
 
 // Image Generation Request (POST /v1/images/generations)
 export interface ImageGenerationRequest {
@@ -34,6 +48,39 @@ export interface ZImageGenerationRequest {
   seed?: number;
   nsfw_check?: boolean;
   callback_url?: string;
+}
+
+// WAN2.6 Video Generation Request (POST /v1/videos/generations)
+export interface VideoGenerationRequest {
+  model: VideoModel;
+  prompt: string;
+  aspect_ratio?: VideoAspectRatio;
+  quality?: VideoQuality;
+  duration?: VideoDuration;
+  prompt_extend?: boolean;
+  model_params?: {
+    shot_type?: VideoShotType;
+  };
+  callback_url?: string;
+}
+
+// Video Generation Response
+export interface VideoGenerationResponse {
+  created: number;
+  id: string;
+  model: string;
+  object: "video.generation.task";
+  progress: number;
+  status: TaskStatus;
+  task_info: VideoTaskInfo;
+  type: "video";
+  usage: Usage;
+}
+
+// Video Task Info
+export interface VideoTaskInfo {
+  can_cancel: boolean;
+  estimated_time?: number;
 }
 
 // Task Info

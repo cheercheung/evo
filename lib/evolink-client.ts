@@ -5,6 +5,8 @@ import type {
   ErrorResponse,
   FileUploadResponse,
   ZImageGenerationRequest,
+  VideoGenerationRequest,
+  VideoGenerationResponse,
 } from "@/types/evolink";
 
 const API_BASE_URL = "https://api.evolink.ai";
@@ -266,6 +268,51 @@ export class EvolinkClient {
       }
       throw error;
     }
+  }
+
+  /**
+   * Create a video generation task (WAN2.6)
+   * POST /v1/videos/generations
+   */
+  async createVideoGeneration(
+    request: VideoGenerationRequest
+  ): Promise<VideoGenerationResponse> {
+    // Remove undefined fields
+    const cleanedRequest = { ...request };
+    Object.keys(cleanedRequest).forEach((key) => {
+      if (cleanedRequest[key as keyof typeof cleanedRequest] === undefined) {
+        delete cleanedRequest[key as keyof typeof cleanedRequest];
+      }
+    });
+
+    console.log("发送到视频生成 API 的请求数据:", cleanedRequest);
+
+    // 使用代理避免 CORS
+    if (USE_PROXY) {
+      console.log("🔄 使用代理模式");
+      const response = await fetch("/api/video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cleanedRequest),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error?.message || `API Error: ${response.status}`
+        );
+      }
+
+      return data as VideoGenerationResponse;
+    }
+
+    return this.request<VideoGenerationResponse>("/v1/videos/generations", {
+      method: "POST",
+      body: JSON.stringify(cleanedRequest),
+    });
   }
 }
 
