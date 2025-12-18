@@ -25,7 +25,12 @@ export default function AutoTaskQuery({
   useEffect(() => {
     if (!taskId || !apiKey) return;
 
+    let intervalId: NodeJS.Timeout | null = null;
+    let isCompleted = false;
+
     const queryTask = async () => {
+      if (isCompleted) return; // 已完成时不再查询
+
       try {
         const client = new EvolinkClient(apiKey);
         const response = await client.queryTask(taskId);
@@ -38,10 +43,14 @@ export default function AutoTaskQuery({
 
         // 如果任务完成，停止轮询
         if (response.status === "completed" || response.status === "failed") {
+          isCompleted = true;
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
           if (response.status === "completed" && onComplete) {
             onComplete();
           }
-          return;
         }
       } catch (err: any) {
         setError(err.message || "查询失败");
@@ -52,9 +61,14 @@ export default function AutoTaskQuery({
     queryTask();
 
     // 每 3 秒查询一次
-    const interval = setInterval(queryTask, 3000);
+    intervalId = setInterval(queryTask, 3000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isCompleted = true;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, [taskId, apiKey, onComplete, onResultsUpdate]);
 
   // 自动下载图片到本地

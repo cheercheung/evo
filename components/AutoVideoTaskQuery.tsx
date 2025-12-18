@@ -24,7 +24,12 @@ export default function AutoVideoTaskQuery({
   useEffect(() => {
     if (!taskId || !apiKey) return;
 
+    let intervalId: NodeJS.Timeout | null = null;
+    let isCompleted = false;
+
     const queryTask = async () => {
+      if (isCompleted) return; // 已完成时不再查询
+
       try {
         const client = new EvolinkClient(apiKey);
         const response = await client.queryTask(taskId);
@@ -35,10 +40,14 @@ export default function AutoVideoTaskQuery({
         }
 
         if (response.status === "completed" || response.status === "failed") {
+          isCompleted = true;
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
           if (response.status === "completed" && onComplete) {
             onComplete();
           }
-          return;
         }
       } catch (err: any) {
         setError(err.message || "查询失败");
@@ -46,9 +55,14 @@ export default function AutoVideoTaskQuery({
     };
 
     queryTask();
-    const interval = setInterval(queryTask, 5000); // 视频生成较慢，5秒查询一次
+    intervalId = setInterval(queryTask, 5000); // 视频生成较慢，5秒查询一次
 
-    return () => clearInterval(interval);
+    return () => {
+      isCompleted = true;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, [taskId, apiKey, onComplete, onResultsUpdate]);
 
   const downloadVideo = async (url: string, index: number) => {
