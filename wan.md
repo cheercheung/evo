@@ -1,17 +1,17 @@
-# Wan2.6 Text to Video
+# Wan2.6 Image to Video
 
-> - WAN2.6 (wan2.6-text-to-video) model supports text-to-video generation
+> - WAN2.6 (wan2.6-image-to-video) model supports first-frame image-to-video generation
 - Asynchronous processing mode, use the returned task ID to [query status](/en/api-manual/task-management/get-task-detail)
 - Generated video links are valid for 24 hours, please save them promptly
 
 ## OpenAPI
 
-````yaml en/api-manual/video-series/wan2.6/wan2.6-text-to-video.json post /v1/videos/generations
+````yaml en/api-manual/video-series/wan2.6/wan2.6-image-to-video.json post /v1/videos/generations
 openapi: 3.1.0
 info:
-  title: wan2.6-text-to-video API
+  title: wan2.6-image-to-video API
   description: >-
-    Generate videos from text using the WAN2.6 model with simplified model
+    Generate videos from images using the WAN2.6 model with simplified model
     parameter configuration
   license:
     name: MIT
@@ -26,27 +26,28 @@ paths:
     post:
       tags:
         - Video Generation
-      summary: wan2.6-text-to-video API
+      summary: wan2.6-image-to-video API
       description: >-
-        - WAN2.6 (wan2.6-text-to-video) model supports text-to-video generation
+        - WAN2.6 (wan2.6-image-to-video) model supports first-frame
+        image-to-video generation
 
         - Asynchronous processing mode, use the returned task ID to [query
         status](/en/api-manual/task-management/get-task-detail)
 
         - Generated video links are valid for 24 hours, please save them
         promptly
-      operationId: createWan26TextToVideoGeneration
+      operationId: createWan26ImageToVideoGeneration
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Wan26TextToVideoRequest'
+              $ref: '#/components/schemas/Wan26ImageToVideoRequest'
             examples:
-              text_to_video:
-                summary: Text to Video
+              image_to_video:
+                summary: Image to Video
                 value:
-                  model: wan2.6-text-to-video
+                  model: wan2.6-image-to-video
                   prompt: A cat playing piano
       responses:
         '200':
@@ -102,7 +103,7 @@ paths:
                   message: Specified model not found
                   type: not_found_error
                   param: model
-                  fallback_suggestion: wan2.6-text-to-video
+                  fallback_suggestion: wan2.6-image-to-video
         '429':
           description: Rate limit exceeded
           content:
@@ -153,19 +154,20 @@ paths:
                   fallback_suggestion: retry after 30 seconds
 components:
   schemas:
-    Wan26TextToVideoRequest:
+    Wan26ImageToVideoRequest:
       type: object
       required:
         - model
         - prompt
+        - image_urls
       properties:
         model:
           type: string
           description: Model name
           enum:
-            - wan2.6-text-to-video
-          default: wan2.6-text-to-video
-          example: wan2.6-text-to-video
+            - wan2.6-image-to-video
+          default: wan2.6-image-to-video
+          example: wan2.6-image-to-video
         prompt:
           type: string
           description: >-
@@ -173,36 +175,6 @@ components:
             characters
           example: A cat playing piano
           maxLength: 1500
-        aspect_ratio:
-          type: string
-          description: >-
-            Video aspect ratio, defaults to `16:9`
-
-
-            **Options:**
-
-            - `720p`: Supports `16:9` (landscape), `9:16` (portrait), `1:1`
-            (square), `4:3`, `3:4`
-
-            - `1080p`: Supports `16:9` (landscape), `9:16` (portrait), `1:1`
-            (square), `4:3`, `3:4`
-          example: '16:9'
-        quality:
-          type: string
-          description: >-
-            Video quality, defaults to `720p`
-
-
-            **Options:**
-
-            - `720p`: Standard definition, standard price, this is the default
-
-            - `1080p`: High definition, higher price
-
-
-            **Note:** Different quality levels support different aspect ratios,
-            see `aspect_ratio` parameter
-          example: 720p
         duration:
           type: integer
           description: >-
@@ -217,6 +189,41 @@ components:
             - Each request will be pre-charged based on the `duration` value,
             actual charge is based on the generated video duration
           example: 5
+        quality:
+          type: string
+          description: |-
+            Video quality, defaults to `720p`
+
+            **Options:**
+            - `720p`: Standard definition, standard price, this is the default
+            - `1080p`: High definition, higher price
+          example: 720p
+        image_urls:
+          type: array
+          description: >-
+            Reference image URL list for first-frame image-to-video generation
+
+
+            **Note:**
+
+            - Single request supports `1` image
+
+            - Image size: no more than `10MB`
+
+            - Supported formats: `.jpeg`, `.jpg`, `.png` (transparent channel
+            not supported), `.bmp`, `.webp`
+
+            - Image resolution: width and height range is `[360, 2000]` pixels
+
+            - Image URL must be directly accessible by the server, or the URL
+            should directly download the image (typically URLs ending with image
+            extensions like `.png`, `.jpg`)
+          items:
+            type: string
+            format: uri
+          maxItems: 1
+          example:
+            - https://example.com/image1.png
         prompt_extend:
           type: boolean
           description: >-
@@ -318,7 +325,7 @@ components:
         model:
           type: string
           description: Actual model name used
-          example: wan2.6-text-to-video
+          example: wan2.6-image-to-video
         object:
           type: string
           enum:

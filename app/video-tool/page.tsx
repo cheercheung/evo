@@ -40,6 +40,7 @@ export default function VideoToolPage() {
     prompt_extend: boolean;
     shot_type: VideoShotType;
     callbackUrl: string;
+    imageFile: File | null;
   }) => {
     if (!apiKey) {
       setGenError("请先在 .env.local 中设置 API Key");
@@ -51,17 +52,28 @@ export default function VideoToolPage() {
 
     try {
       const client = new EvolinkClient(apiKey);
+      const isImageToVideo = data.model === "wan2.6-image-to-video";
+
+      // 如果是图生视频模式，先上传图片
+      let imageUrls: string[] | undefined;
+      if (isImageToVideo && data.imageFile) {
+        const uploadResponse = await client.uploadFile(data.imageFile, {
+          uploadPath: "video-generation",
+        });
+        imageUrls = [uploadResponse.data.file_url];
+      }
 
       const response = await client.createVideoGeneration({
         model: data.model,
         prompt: data.prompt,
-        aspect_ratio: data.aspect_ratio,
+        aspect_ratio: isImageToVideo ? undefined : data.aspect_ratio, // 图生视频不需要宽高比
         quality: data.quality,
         duration: data.duration,
         prompt_extend: data.prompt_extend,
         model_params: {
           shot_type: data.shot_type,
         },
+        image_urls: imageUrls,
         callback_url: data.callbackUrl || undefined,
       });
 

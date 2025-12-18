@@ -24,6 +24,7 @@ interface VideoGenerationFormProps {
     prompt_extend: boolean;
     shot_type: VideoShotType;
     callbackUrl: string;
+    imageFile: File | null;
   }) => void;
   loading: boolean;
   error: string | null;
@@ -36,7 +37,7 @@ export default function VideoGenerationForm({
   error,
   taskId,
 }: VideoGenerationFormProps) {
-  const [model] = useState<VideoModel>("wan2.6-text-to-video");
+  const [model, setModel] = useState<VideoModel>("wan2.6-text-to-video");
   const [prompt, setPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState<VideoAspectRatio>("16:9");
   const [quality, setQuality] = useState<VideoQuality>("720p");
@@ -44,6 +45,27 @@ export default function VideoGenerationForm({
   const [promptExtend, setPromptExtend] = useState(true);
   const [shotType, setShotType] = useState<VideoShotType>("single");
   const [callbackUrl, setCallbackUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const isImageToVideo = model === "wan2.6-image-to-video";
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +78,7 @@ export default function VideoGenerationForm({
       prompt_extend: promptExtend,
       shot_type: shotType,
       callbackUrl,
+      imageFile,
     });
   };
 
@@ -76,16 +99,62 @@ export default function VideoGenerationForm({
         <label className="text-xs text-gray-400">模型 model</label>
         <select
           value={model}
-          disabled
-          className="px-2 py-1.5 rounded border border-gray-700 bg-slate-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onChange={(e) => {
+            setModel(e.target.value as VideoModel);
+            if (e.target.value === "wan2.6-text-to-video") {
+              removeImage();
+            }
+          }}
+          className="px-2 py-1.5 rounded border border-gray-700 bg-slate-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
         >
           {VIDEO_MODELS.map((m) => (
             <option key={m} value={m}>
-              {m}
+              {m === "wan2.6-text-to-video" ? "文生视频 (text-to-video)" : "图生视频 (image-to-video)"}
             </option>
           ))}
         </select>
       </div>
+
+      {/* Image Upload - 仅图生视频模式 */}
+      {isImageToVideo && (
+        <div className="flex flex-col gap-2">
+          <label className="text-xs text-gray-400">
+            首帧图片 image_urls * (最大10MB, 支持 jpg/png/bmp/webp)
+          </label>
+          {imagePreview ? (
+            <div className="relative inline-block w-fit">
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="max-h-48 rounded border border-gray-700"
+              />
+              <button
+                type="button"
+                onClick={removeImage}
+                className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 text-white rounded-full text-sm hover:bg-red-700"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-purple-500 transition-colors">
+              <div className="flex flex-col items-center gap-2 text-gray-400">
+                <span className="text-2xl">🖼️</span>
+                <span className="text-sm">点击上传首帧图片</span>
+              </div>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.bmp,.webp"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </label>
+          )}
+          <span className="text-[10px] text-gray-500">
+            图片分辨率: 宽高范围 360-2000 像素
+          </span>
+        </div>
+      )}
 
       {/* Prompt */}
       <div className="flex flex-col gap-1">
@@ -102,14 +171,14 @@ export default function VideoGenerationForm({
         <span className="text-[10px] text-gray-500 text-right">{prompt.length}/1500</span>
       </div>
 
-      {/* Quality, Aspect Ratio, Duration Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Quality, Aspect Ratio (仅文生视频), Duration Grid */}
+      <div className={`grid grid-cols-1 gap-3 ${isImageToVideo ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400">质量 quality</label>
           <select
             value={quality}
             onChange={(e) => setQuality(e.target.value as VideoQuality)}
-            className="px-2 py-1.5 rounded border border-gray-700 bg-slate-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-2 py-1.5 rounded border border-gray-700 bg-slate-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             {VIDEO_QUALITIES.map((q) => (
               <option key={q} value={q}>
@@ -119,20 +188,23 @@ export default function VideoGenerationForm({
           </select>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-400">宽高比 aspect_ratio</label>
-          <select
-            value={aspectRatio}
-            onChange={(e) => setAspectRatio(e.target.value as VideoAspectRatio)}
-            className="px-2 py-1.5 rounded border border-gray-700 bg-slate-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {VIDEO_ASPECT_RATIOS.map((ar) => (
-              <option key={ar} value={ar}>
-                {ar}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* 宽高比 - 仅文生视频模式 */}
+        {!isImageToVideo && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400">宽高比 aspect_ratio</label>
+            <select
+              value={aspectRatio}
+              onChange={(e) => setAspectRatio(e.target.value as VideoAspectRatio)}
+              className="px-2 py-1.5 rounded border border-gray-700 bg-slate-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              {VIDEO_ASPECT_RATIOS.map((ar) => (
+                <option key={ar} value={ar}>
+                  {ar}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400">时长 duration (秒)</label>
@@ -200,10 +272,10 @@ export default function VideoGenerationForm({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={loading || !prompt}
+        disabled={loading || !prompt || (isImageToVideo && !imageFile)}
         className="px-4 py-2 rounded-md border-none bg-purple-600 text-white font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {loading ? "创建中..." : "🎬 创建视频生成任务"}
+        {loading ? "创建中..." : isImageToVideo ? "🎬 创建图生视频任务" : "🎬 创建文生视频任务"}
       </button>
 
       {/* Error Message */}
