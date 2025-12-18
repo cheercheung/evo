@@ -155,7 +155,19 @@ export default function VideoToolPage() {
                 href="/image-tool"
                 className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors"
               >
-                图片生成
+                Nano Banana
+              </Link>
+              <Link
+                href="/nb-cover"
+                className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors"
+              >
+                NB 封面
+              </Link>
+              <Link
+                href="/z-image"
+                className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors"
+              >
+                Z-Image
               </Link>
             </div>
           </div>

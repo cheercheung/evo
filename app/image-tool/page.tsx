@@ -194,6 +194,7 @@ export default function ImageToolPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">图片生成</h1>
             <div className="flex gap-2">
+              <Link href="/video-tool" className="text-sm px-4 py-2 border border-purple-700 text-purple-400 hover:border-purple-500 transition-colors">🎬 视频</Link>
               <Link href="/nb-cover" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">NB 封面</Link>
               <Link href="/z-image" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">Z-Image</Link>
             </div>

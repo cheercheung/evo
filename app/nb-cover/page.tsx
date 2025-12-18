@@ -167,6 +167,7 @@ export default function NBCoverPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">🍌 NB 封面制作</h1>
             <div className="flex gap-2">
+              <Link href="/video-tool" className="text-sm px-4 py-2 border border-purple-700 text-purple-400 hover:border-purple-500 transition-colors">🎬 视频</Link>
               <Link href="/image-tool" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">Nano Banana</Link>
               <Link href="/z-image" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">Z-Image</Link>
             </div>
