@@ -81,6 +81,7 @@ export default function NBCoverPage() {
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const historySectionRef = useRef<HTMLDivElement | null>(null);
 
   // 预设 Logo 列表
   const [presetLogos, setPresetLogos] = useState<{ name: string; path: string }[]>([]);
@@ -353,221 +354,297 @@ export default function NBCoverPage() {
     return false;
   };
 
+  const latestTask = tasks[0];
+  const latestPreviewImage = latestTask ? taskResults[latestTask.id]?.[0] : null;
+  const previewImage = latestPreviewImage || currentCategory.sampleImagePath || currentCategory.defaultImagePath;
+  const previewLabel = latestPreviewImage ? "最新生成预览" : currentCategory.sampleImagePath ? "效果示例" : "默认参考图片";
+
+  const handleScrollToHistory = () => {
+    historySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto flex flex-col gap-8">
-        {/* Header */}
-        <div className="flex flex-col gap-2 border-b border-gray-800 pb-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">🍌 NB 封面制作</h1>
-            <div className="flex gap-2">
-              <Link href="/video-tool" className="text-sm px-4 py-2 border border-purple-700 text-purple-400 hover:border-purple-500 transition-colors">🎬 视频</Link>
-              <Link href="/image-tool" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">Nano Banana</Link>
-              <Link href="/z-image" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">Z-Image</Link>
+    <main className="min-h-screen bg-black text-white">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10 md:px-10">
+        <header className="flex flex-col gap-4 border-b border-gray-900 pb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-400/10 text-2xl">🍌</div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-gray-500">NB</p>
+                <h1 className="text-3xl font-bold">NB 封面制作</h1>
+                <p className="text-xs text-gray-500">Nano Banana Cover Studio</p>
+              </div>
             </div>
+            <nav className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-[10px] uppercase tracking-[0.4em] text-gray-500">菜单</span>
+              <Link href="/video-tool" className="rounded-full border border-purple-700/60 px-4 py-2 text-purple-300 transition-colors hover:border-purple-400">
+                🎬 视频
+              </Link>
+              <Link href="/image-tool" className="rounded-full border border-gray-800 px-4 py-2 text-gray-300 transition-colors hover:border-white">
+                Nano Banana
+              </Link>
+              <Link href="/z-image" className="rounded-full border border-gray-800 px-4 py-2 text-gray-300 transition-colors hover:border-white">
+                Z-Image
+              </Link>
+            </nav>
           </div>
           <p className="text-sm text-gray-500">{currentCategory.description} · 模型: nano-banana-2-lite · 尺寸: 3:4 · 质量: 2K</p>
-        </div>
+        </header>
 
-        {/* Category Selector */}
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-medium text-white">选择封面类型</label>
-          <div className="flex gap-3">
-            {(Object.keys(CATEGORIES) as CategoryKey[]).map((key) => (
-              <button
-                key={key}
-                onClick={() => setSelectedCategory(key)}
-                className={`px-4 py-2 text-sm border transition-colors ${
-                  selectedCategory === key
-                    ? "border-white bg-white text-black"
-                    : "border-gray-700 hover:border-white text-gray-300"
-                }`}
-              >
-                {CATEGORIES[key].name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sample Image Preview - 效果示例 */}
-        {currentCategory.sampleImagePath && (
-          <div className="flex flex-col gap-3 p-4 border border-dashed border-gray-700 bg-gray-900/30 rounded">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-white">📷 效果示例</span>
-              <span className="text-xs text-gray-500">生成的图片效果大致如下</span>
-            </div>
-            <img
-              src={currentCategory.sampleImagePath}
-              alt="效果示例"
-              className="max-w-md h-auto border border-gray-700 rounded"
-            />
-          </div>
-        )}
-
-        {/* Reference Image Preview */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-white">默认参考图片</label>
-          <div className="flex items-center gap-4">
-            <img
-              src={currentCategory.defaultImagePath}
-              alt="参考图片"
-              className="w-32 h-auto border border-gray-700"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Crect fill='%23333' width='128' height='128'/%3E%3Ctext fill='%23666' x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='12'%3E暂无图片%3C/text%3E%3C/svg%3E";
-              }}
-            />
-            <div className="text-xs text-gray-500">
-              {referenceImageUrl ? "✅ 已上传" : "⏳ 上传中..."}
-            </div>
-          </div>
-        </div>
-
-        {/* Logo Upload (for product-logo category) */}
-        {currentCategory.needsLogoUpload && (
-          <div className="flex flex-col gap-4">
-            <label className="text-sm font-medium text-white">Logo 图片 (必须选择或上传)</label>
-
-            {/* 预设 Logo 选择 */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs text-gray-400">选择预设 Logo：</span>
-              {loadingPresetLogos ? (
-                <div className="text-xs text-gray-500">加载中...</div>
-              ) : presetLogos.length > 0 ? (
-                <div className="flex flex-wrap gap-3">
-                  {presetLogos.map((logo) => (
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          {/* 左侧配置 - 35% */}
+          <section className="w-full lg:w-[35%]">
+            <div className="flex flex-col gap-6 lg:sticky lg:top-8">
+              {/* 类型 */}
+              <div className="rounded-2xl border border-gray-900 bg-gray-950/60 p-5 shadow-[0_0_18px_rgba(255,255,255,0.05)]">
+                <div className="text-[11px] uppercase tracking-[0.45em] text-gray-500">1. 类型选择</div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {(Object.keys(CATEGORIES) as CategoryKey[]).map((key) => (
                     <button
-                      key={logo.path}
-                      onClick={() => handleSelectPresetLogo(logo.path)}
-                      disabled={uploadingLogo}
-                      className={`relative group flex flex-col items-center gap-1 p-2 border transition-colors ${
-                        logoPreviewUrl === logo.path
-                          ? "border-green-500 bg-green-500/10"
-                          : "border-gray-700 hover:border-white"
-                      } ${uploadingLogo ? "opacity-50 cursor-not-allowed" : ""}`}
+                      key={key}
+                      onClick={() => setSelectedCategory(key)}
+                      className={`rounded-full px-4 py-2 text-sm transition-all ${
+                        selectedCategory === key
+                          ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.35)]"
+                          : "border border-gray-700 text-gray-300 hover:border-white"
+                      }`}
                     >
-                      <img
-                        src={logo.path}
-                        alt={logo.name}
-                        className="w-16 h-16 object-contain"
-                      />
-                      <span className="text-[10px] text-gray-400 truncate max-w-[70px]" title={logo.name}>
-                        {logo.name}
-                      </span>
+                      {CATEGORIES[key].name}
                     </button>
                   ))}
                 </div>
-              ) : (
-                <div className="text-xs text-gray-500">暂无预设 Logo</div>
-              )}
-            </div>
+              </div>
 
-            {/* 自定义上传 */}
-            <div className="flex flex-col gap-2 pt-2 border-t border-gray-800">
-              <span className="text-xs text-gray-400">或上传自定义 Logo：</span>
-              <div className="flex items-center gap-4">
-                {logoPreviewUrl ? (
-                  <img
-                    src={logoPreviewUrl}
-                    alt="Logo 预览"
-                    className="w-20 h-20 object-contain border border-gray-700"
-                  />
-                ) : (
-                  <div className="w-20 h-20 border border-dashed border-gray-700 flex items-center justify-center text-gray-500 text-xs">
-                    待选择
+              {/* 素材上传 */}
+              <div className="rounded-2xl border border-gray-900 bg-gray-950/40 p-5">
+                <div className="text-[11px] uppercase tracking-[0.45em] text-gray-500">2. 素材上传</div>
+                <div className={`mt-4 grid gap-4 ${currentCategory.needsLogoUpload ? "md:grid-cols-2" : ""}`}>
+                  <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+                    <div className="flex items-center justify-between text-sm text-gray-300">
+                      <span>参考图</span>
+                      <span className="text-xs text-gray-500">{referenceImageUrl ? "✅ 已就绪" : "⏳ 上传中"}</span>
+                    </div>
+                    <div className="mt-3 overflow-hidden rounded-lg border border-gray-800 bg-black">
+                      <img
+                        src={currentCategory.defaultImagePath}
+                        alt="默认参考图"
+                        className="w-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' fill='%23111'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='16' fill='%23666'%3E暂无图片%3C/text%3E%3C/svg%3E";
+                        }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">自动上传至 nb-cover 目录</p>
                   </div>
-                )}
-                <div className="flex flex-col gap-2">
-                  <input
-                    ref={logoInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    onChange={handleLogoUpload}
-                    disabled={uploadingLogo}
-                    className="hidden"
-                    id="logo-upload-input"
-                  />
-                  <label
-                    htmlFor="logo-upload-input"
-                    className={`px-3 py-2 text-xs border cursor-pointer transition-colors ${
-                      uploadingLogo
-                        ? "border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed"
-                        : "border-blue-600 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20"
-                    }`}
-                  >
-                    {uploadingLogo ? "上传中..." : "📁 上传自定义 Logo"}
-                  </label>
-                  <span className="text-[10px] text-gray-500">
-                    支持 JPEG, PNG, GIF, WebP
-                  </span>
-                  {logoImageUrl && (
-                    <span className="text-xs text-green-400">✅ 已就绪</span>
+
+                  {currentCategory.needsLogoUpload && (
+                    <div className="flex flex-col gap-4">
+                      <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+                        <div className="text-sm text-gray-300">预设 Logo</div>
+                        <div className="mt-3 min-h-[120px]">
+                          {loadingPresetLogos ? (
+                            <div className="text-xs text-gray-500">加载中...</div>
+                          ) : presetLogos.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {presetLogos.map((logo) => (
+                                <button
+                                  key={logo.path}
+                                  onClick={() => handleSelectPresetLogo(logo.path)}
+                                  disabled={uploadingLogo}
+                                  className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 transition-colors ${
+                                    logoPreviewUrl === logo.path
+                                      ? "border-green-500 bg-green-500/10"
+                                      : "border-gray-800 hover:border-white"
+                                  } ${uploadingLogo ? "opacity-50" : ""}`}
+                                >
+                                  <img src={logo.path} alt={logo.name} className="h-12 w-12 object-contain" />
+                                  <span className="text-[10px] text-gray-400" title={logo.name}>
+                                    {logo.name}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500">暂无预设 Logo</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+                        <div className="text-sm text-gray-300">Logo 上传</div>
+                        <div className="mt-3 flex items-center gap-4">
+                          {logoPreviewUrl ? (
+                            <img src={logoPreviewUrl} alt="Logo 预览" className="h-16 w-16 rounded border border-gray-800 object-contain" />
+                          ) : (
+                            <div className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-gray-700 text-[10px] text-gray-600">
+                              待上传
+                            </div>
+                          )}
+                          <div className="flex flex-col gap-2">
+                            <input
+                              ref={logoInputRef}
+                              type="file"
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              onChange={handleLogoUpload}
+                              disabled={uploadingLogo}
+                              className="hidden"
+                              id="logo-upload-input"
+                            />
+                            <label
+                              htmlFor="logo-upload-input"
+                              className={`w-max rounded-full px-4 py-2 text-xs transition-colors ${
+                                uploadingLogo
+                                  ? "cursor-not-allowed border border-gray-700 text-gray-500"
+                                  : "border border-blue-500 text-blue-300 hover:bg-blue-500/10"
+                              }`}
+                            >
+                              {uploadingLogo ? "上传中..." : "📁 上传 Logo"}
+                            </label>
+                            <span className="text-[10px] text-gray-500">支持 JPEG/PNG/GIF/WebP</span>
+                            {logoImageUrl && <span className="text-xs text-green-400">✅ 已上传 Evolink</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Dynamic Input Fields */}
-        {currentCategory.inputs.map((input) => (
-          <div key={input.key} className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-white">{input.label}</label>
-            <input
-              type="text"
-              value={inputValues[input.key] || ""}
-              onChange={(e) => setInputValues(prev => ({ ...prev, [input.key]: e.target.value }))}
-              placeholder={input.placeholder}
-              className="px-4 py-3 bg-black text-white border border-gray-700 focus:border-white focus:outline-none"
-            />
-          </div>
-        ))}
+              {/* 文本设置 */}
+              <div className="rounded-2xl border border-gray-900 bg-gray-950/60 p-5">
+                <div className="text-[11px] uppercase tracking-[0.45em] text-gray-500">3. 文本设置</div>
+                <div className="mt-4 flex flex-col gap-4">
+                  {currentCategory.inputs.map((input) => (
+                    <div key={input.key} className="flex flex-col gap-2">
+                      <label className="text-sm text-gray-300">{input.label}</label>
+                      <input
+                        type="text"
+                        value={inputValues[input.key] || ""}
+                        onChange={(e) => setInputValues((prev) => ({ ...prev, [input.key]: e.target.value }))}
+                        placeholder={input.placeholder}
+                        className="rounded-lg border border-gray-800 bg-black/60 px-4 py-3 text-white placeholder-gray-600 focus:border-white focus:outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-        {/* Generate Button */}
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerateDisabled()}
-          className="px-6 py-3 bg-white text-black font-medium hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
-        >
-          {genLoading ? "生成中..." : "生成封面"}
-        </button>
-
-        {/* Error */}
-        {genError && <div className="px-4 py-3 bg-red-900/20 border border-red-900 text-red-400 text-sm">{genError}</div>}
-
-        {/* Tasks */}
-        {tasks.length > 0 && (
-          <div className="flex flex-col gap-6 border-t border-gray-800 pt-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">任务列表 ({tasks.length})</h2>
-              <div className="flex gap-2">
-                {getTotalImageCount() > 0 && (
-                  <button onClick={downloadAllImages} disabled={downloadingAll}
-                    className="text-sm px-4 py-2 bg-white text-black hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-600 transition-colors font-medium">
-                    {downloadingAll ? "下载中..." : `一键下载全部 (${getTotalImageCount()} 张)`}
-                  </button>
-                )}
-                <button onClick={() => { setTasks([]); setTaskResults({}); }}
-                  className="text-xs px-3 py-1 border border-gray-700 hover:border-white transition-colors">清空全部</button>
+              {/* 操作按钮 */}
+              <div className="rounded-2xl border border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-transparent p-5 shadow-[0_0_25px_rgba(253,230,138,0.2)]">
+                <div className="flex items-center justify-between text-xs uppercase tracking-[0.45em] text-yellow-200">
+                  <span>生成封面</span>
+                  <span>{previewLabel}</span>
+                </div>
+                <button
+                  onClick={handleGenerate}
+                  disabled={isGenerateDisabled()}
+                  className="mt-4 w-full rounded-xl bg-white py-3 text-base font-semibold text-black shadow-lg transition-all hover:bg-gray-200 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-500"
+                >
+                  {genLoading ? "生成中..." : "🚀 一键生成 NB 封面"}
+                </button>
+                {genError && <div className="mt-3 rounded border border-red-900/60 bg-red-900/20 p-3 text-sm text-red-300">{genError}</div>}
               </div>
             </div>
+          </section>
+
+          {/* 右侧预览 - 65% */}
+          <section className="w-full lg:w-[65%]">
             <div className="flex flex-col gap-6">
-              {tasks.map((task) => (
-                <div key={task.id} className="border border-gray-800 p-6 flex flex-col gap-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 flex flex-col gap-1">
-                      <div className="text-xs text-gray-500">{new Date(task.createdAt).toLocaleString("zh-CN")}</div>
-                      <div className="text-xs text-blue-400">[{CATEGORIES[task.category as CategoryKey]?.name || task.category}]</div>
-                      <div className="text-sm text-gray-300">{task.inputText}</div>
-                      <div className="text-xs text-gray-600 font-mono">ID: {task.id}</div>
-                    </div>
-                    <button onClick={() => removeTask(task.id)} className="text-xs px-3 py-1 border border-gray-700 hover:border-red-500 hover:text-red-500 transition-colors">移除</button>
+              <div className="rounded-3xl border border-gray-900 bg-gradient-to-b from-gray-950 to-black p-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.4em] text-gray-500">预览区</div>
+                    <h2 className="mt-1 text-2xl font-semibold">{previewLabel}</h2>
+                    <p className="text-sm text-gray-500">实时查看默认参考或最新生成画面</p>
                   </div>
-                  <AutoTaskQuery apiKey={apiKey} taskId={task.id} onResultsUpdate={(urls) => updateTaskResults(task.id, urls)} />
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <button
+                      onClick={downloadAllImages}
+                      disabled={downloadingAll || getTotalImageCount() === 0}
+                      className="rounded-full border border-gray-700 px-4 py-2 text-gray-200 transition-colors hover:border-white disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-500"
+                    >
+                      {downloadingAll ? "下载中..." : "下载"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-full border border-gray-800 px-4 py-2 text-gray-600"
+                    >
+                      分享
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleScrollToHistory}
+                      className="rounded-full border border-gray-700 px-4 py-2 text-gray-200 transition-colors hover:border-white"
+                    >
+                      历史
+                    </button>
+                  </div>
                 </div>
-              ))}
+                <div className="mt-6 aspect-[3/4] w-full overflow-hidden rounded-2xl border border-gray-900 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.1),_transparent_60%)]">
+                  {previewImage ? (
+                    <img src={previewImage} alt={previewLabel} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm text-gray-600">暂无预览</div>
+                  )}
+                </div>
+              </div>
+
+              <div ref={historySectionRef} className="rounded-3xl border border-gray-900 bg-gray-950/40 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-semibold">任务历史</h2>
+                    <p className="text-sm text-gray-500">共 {tasks.length} 条记录 · 已生成 {getTotalImageCount()} 张</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <button
+                      onClick={() => {
+                        setTasks([]);
+                        setTaskResults({});
+                      }}
+                      className="rounded-full border border-gray-800 px-3 py-1 text-gray-400 transition-colors hover:border-white hover:text-white"
+                    >
+                      清空全部
+                    </button>
+                  </div>
+                </div>
+
+                {tasks.length === 0 ? (
+                  <div className="mt-6 rounded-2xl border border-dashed border-gray-800 p-8 text-center text-sm text-gray-500">
+                    暂无生成记录，配置左侧参数后点击“生成封面”即可查看历史。
+                  </div>
+                ) : (
+                  <div className="mt-6 flex flex-col gap-5">
+                    {tasks.map((task) => (
+                      <div key={task.id} className="rounded-2xl border border-gray-900 bg-black/40 p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="text-xs text-gray-500">{new Date(task.createdAt).toLocaleString("zh-CN")}</div>
+                            <div className="text-xs text-blue-400">
+                              [{CATEGORIES[task.category as CategoryKey]?.name || task.category}]
+                            </div>
+                            <div className="text-sm text-gray-200">{task.inputText}</div>
+                            <div className="text-[11px] text-gray-600">ID: {task.id}</div>
+                          </div>
+                          <button
+                            onClick={() => removeTask(task.id)}
+                            className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300 transition-colors hover:border-red-500 hover:text-red-400"
+                          >
+                            移除
+                          </button>
+                        </div>
+                        <div className="mt-4 rounded-xl border border-gray-900 bg-black/60 p-4">
+                          <AutoTaskQuery apiKey={apiKey} taskId={task.id} onResultsUpdate={(urls) => updateTaskResults(task.id, urls)} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          </section>
+        </div>
       </div>
     </main>
   );
