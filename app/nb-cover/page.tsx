@@ -23,6 +23,7 @@ interface CategoryConfig {
   needsLogoUpload: boolean;
   inputs: { key: string; label: string; placeholder: string }[];
   promptTemplate: string;
+  sampleImagePath?: string; // 效果示例图片路径
 }
 
 const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
@@ -56,6 +57,7 @@ The image uses cool-toned, cinematic lighting.
 The girl's mouth is agape, her face filled with amazement.
 
 On the right side of the image, prominent yellow text reads "{text1}" with a smaller white line above it reading "{text2}" A white dotted arrow points to the glowing logo.`,
+    sampleImagePath: "/sample_photo/logo-product-sanmple.png",
   },
 };
 
@@ -80,6 +82,10 @@ export default function NBCoverPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  // 预设 Logo 列表
+  const [presetLogos, setPresetLogos] = useState<{ name: string; path: string }[]>([]);
+  const [loadingPresetLogos, setLoadingPresetLogos] = useState(false);
+
   // 生成状态
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -88,6 +94,24 @@ export default function NBCoverPage() {
   const [downloadingAll, setDownloadingAll] = useState(false);
 
   const currentCategory = CATEGORIES[selectedCategory];
+
+  // 加载预设 Logo 列表
+  useEffect(() => {
+    const loadPresetLogos = async () => {
+      if (!currentCategory.needsLogoUpload) return;
+      setLoadingPresetLogos(true);
+      try {
+        const response = await fetch("/api/logo-list");
+        const data = await response.json();
+        setPresetLogos(data.logos || []);
+      } catch (err) {
+        console.error("加载预设 Logo 失败:", err);
+      } finally {
+        setLoadingPresetLogos(false);
+      }
+    };
+    loadPresetLogos();
+  }, [selectedCategory]);
 
   // 切换分类时重置状态
   useEffect(() => {
@@ -150,6 +174,33 @@ export default function NBCoverPage() {
     } catch (err: any) {
       console.error("Logo 图片上传失败:", err);
       setGenError("Logo 图片上传失败: " + (err.message || "未知错误"));
+      setLogoPreviewUrl(null);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  // 选择预设 Logo
+  const handleSelectPresetLogo = async (logoPath: string) => {
+    setLogoPreviewUrl(logoPath);
+    setUploadingLogo(true);
+    setGenError(null);
+
+    try {
+      // 获取预设 Logo 并上传
+      const response = await fetch(logoPath);
+      if (!response.ok) throw new Error("无法加载预设 Logo");
+      const blob = await response.blob();
+      const fileName = logoPath.split("/").pop() || "preset-logo.png";
+      const file = new File([blob], fileName, { type: blob.type });
+
+      const client = new EvolinkClient(apiKey);
+      const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover-logo" });
+      setLogoImageUrl(uploadResponse.data.file_url);
+      console.log("预设 Logo 上传成功:", uploadResponse.data.file_url);
+    } catch (err: any) {
+      console.error("预设 Logo 上传失败:", err);
+      setGenError("预设 Logo 上传失败: " + (err.message || "未知错误"));
       setLogoPreviewUrl(null);
     } finally {
       setUploadingLogo(false);
@@ -338,6 +389,21 @@ export default function NBCoverPage() {
           </div>
         </div>
 
+        {/* Sample Image Preview - 效果示例 */}
+        {currentCategory.sampleImagePath && (
+          <div className="flex flex-col gap-3 p-4 border border-dashed border-gray-700 bg-gray-900/30 rounded">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-white">📷 效果示例</span>
+              <span className="text-xs text-gray-500">生成的图片效果大致如下</span>
+            </div>
+            <img
+              src={currentCategory.sampleImagePath}
+              alt="效果示例"
+              className="max-w-md h-auto border border-gray-700 rounded"
+            />
+          </div>
+        )}
+
         {/* Reference Image Preview */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-white">默认参考图片</label>
@@ -358,46 +424,85 @@ export default function NBCoverPage() {
 
         {/* Logo Upload (for product-logo category) */}
         {currentCategory.needsLogoUpload && (
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-white">Logo 图片 (必须上传)</label>
-            <div className="flex items-center gap-4">
-              {logoPreviewUrl ? (
-                <img
-                  src={logoPreviewUrl}
-                  alt="Logo 预览"
-                  className="w-32 h-auto border border-gray-700"
-                />
-              ) : (
-                <div className="w-32 h-32 border border-dashed border-gray-700 flex items-center justify-center text-gray-500 text-xs">
-                  点击上传 Logo
+          <div className="flex flex-col gap-4">
+            <label className="text-sm font-medium text-white">Logo 图片 (必须选择或上传)</label>
+
+            {/* 预设 Logo 选择 */}
+            <div className="flex flex-col gap-2">
+              <span className="text-xs text-gray-400">选择预设 Logo：</span>
+              {loadingPresetLogos ? (
+                <div className="text-xs text-gray-500">加载中...</div>
+              ) : presetLogos.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {presetLogos.map((logo) => (
+                    <button
+                      key={logo.path}
+                      onClick={() => handleSelectPresetLogo(logo.path)}
+                      disabled={uploadingLogo}
+                      className={`relative group flex flex-col items-center gap-1 p-2 border transition-colors ${
+                        logoPreviewUrl === logo.path
+                          ? "border-green-500 bg-green-500/10"
+                          : "border-gray-700 hover:border-white"
+                      } ${uploadingLogo ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      <img
+                        src={logo.path}
+                        alt={logo.name}
+                        className="w-16 h-16 object-contain"
+                      />
+                      <span className="text-[10px] text-gray-400 truncate max-w-[70px]" title={logo.name}>
+                        {logo.name}
+                      </span>
+                    </button>
+                  ))}
                 </div>
+              ) : (
+                <div className="text-xs text-gray-500">暂无预设 Logo</div>
               )}
-              <div className="flex flex-col gap-2">
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  onChange={handleLogoUpload}
-                  disabled={uploadingLogo}
-                  className="hidden"
-                  id="logo-upload-input"
-                />
-                <label
-                  htmlFor="logo-upload-input"
-                  className={`px-3 py-2 text-xs border cursor-pointer transition-colors ${
-                    uploadingLogo
-                      ? "border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed"
-                      : "border-blue-600 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20"
-                  }`}
-                >
-                  {uploadingLogo ? "上传中..." : "📁 选择 Logo 图片"}
-                </label>
-                <span className="text-[10px] text-gray-500">
-                  支持 JPEG, PNG, GIF, WebP
-                </span>
-                {logoImageUrl && (
-                  <span className="text-xs text-green-400">✅ 已上传</span>
+            </div>
+
+            {/* 自定义上传 */}
+            <div className="flex flex-col gap-2 pt-2 border-t border-gray-800">
+              <span className="text-xs text-gray-400">或上传自定义 Logo：</span>
+              <div className="flex items-center gap-4">
+                {logoPreviewUrl ? (
+                  <img
+                    src={logoPreviewUrl}
+                    alt="Logo 预览"
+                    className="w-20 h-20 object-contain border border-gray-700"
+                  />
+                ) : (
+                  <div className="w-20 h-20 border border-dashed border-gray-700 flex items-center justify-center text-gray-500 text-xs">
+                    待选择
+                  </div>
                 )}
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={handleLogoUpload}
+                    disabled={uploadingLogo}
+                    className="hidden"
+                    id="logo-upload-input"
+                  />
+                  <label
+                    htmlFor="logo-upload-input"
+                    className={`px-3 py-2 text-xs border cursor-pointer transition-colors ${
+                      uploadingLogo
+                        ? "border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed"
+                        : "border-blue-600 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20"
+                    }`}
+                  >
+                    {uploadingLogo ? "上传中..." : "📁 上传自定义 Logo"}
+                  </label>
+                  <span className="text-[10px] text-gray-500">
+                    支持 JPEG, PNG, GIF, WebP
+                  </span>
+                  {logoImageUrl && (
+                    <span className="text-xs text-green-400">✅ 已就绪</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
