@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { EvolinkClient } from "@/lib/evolink-client";
 import AutoTaskQuery from "@/components/AutoTaskQuery";
@@ -9,34 +9,107 @@ interface Task {
   id: string;
   createdAt: number;
   inputText: string;
+  category: string;
 }
 
-const CORRECT_PASSWORD = "lyj";
-const REFERENCE_IMAGE_PATH = "/referrence photo/nbptutorial.jpeg";
+// 分类配置
+type CategoryKey = "nb-tutorial" | "product-logo";
 
-const PROMPT_TEMPLATE = `Create a thumbnail showing a surprised woman standing in a softly lit, dramatically dramatic environment with shimmering light in the background. She holds a bright yellow banana in both hands, seemingly captivated by it. The image uses cool-toned, cinematic lighting. The girl's mouth is agape, her face filled with amazement. On the right side of the image, prominent yellow text reads {input text} with a smaller white line above it reading "Nano banana tutorial" A white dotted arrow points to the glowing banana.`;
+interface CategoryConfig {
+  name: string;
+  description: string;
+  defaultImagePath: string;
+  defaultImageName: string;
+  needsLogoUpload: boolean;
+  inputs: { key: string; label: string; placeholder: string }[];
+  promptTemplate: string;
+}
+
+const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
+  "nb-tutorial": {
+    name: "NB 教程封面",
+    description: "Nano Banana 教程封面",
+    defaultImagePath: "/referrence photo/nbptutorial.jpeg",
+    defaultImageName: "nbptutorial.jpeg",
+    needsLogoUpload: false,
+    inputs: [
+      { key: "text1", label: "封面文字", placeholder: '例如: "AI Tutorial #1"' }
+    ],
+    promptTemplate: `Create a thumbnail showing a surprised woman standing in a softly lit, dramatically dramatic environment with shimmering light in the background. She holds a bright yellow banana in both hands, seemingly captivated by it. The image uses cool-toned, cinematic lighting. The girl's mouth is agape, her face filled with amazement. On the right side of the image, prominent yellow text reads {text1} with a smaller white line above it reading "Nano banana tutorial" A white dotted arrow points to the glowing banana.`,
+  },
+  "product-logo": {
+    name: "产品 Logo",
+    description: "产品 Logo 展示封面",
+    defaultImagePath: "/referrence photo/product-logo-default.png",
+    defaultImageName: "product-logo-default.png",
+    needsLogoUpload: true,
+    inputs: [
+      { key: "text1", label: "主标题 (黄色大字)", placeholder: '例如: "NEW PRODUCT"' },
+      { key: "text2", label: "副标题 (白色小字)", placeholder: '例如: "Coming Soon"' }
+    ],
+    promptTemplate: `Create a thumbnail showing a surprised woman standing in a softly lit, dramatic environment with shimmering light in the background.
+
+She holds a bright logo(reference logo photo) in both hands, seemingly captivated by it.
+
+The image uses cool-toned, cinematic lighting.
+
+The girl's mouth is agape, her face filled with amazement.
+
+On the right side of the image, prominent yellow text reads "{text1}" with a smaller white line above it reading "{text2}" A white dotted arrow points to the glowing logo.`,
+  },
+};
+
+const CORRECT_PASSWORD = "lyj";
 
 export default function NBCoverPage() {
   const apiKey = process.env.NEXT_PUBLIC_EVOLINK_API_KEY || "";
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState(false);
-  const [inputText, setInputText] = useState("");
+
+  // 分类选择
+  const [selectedCategory, setSelectedCategory] = useState<CategoryKey>("nb-tutorial");
+
+  // 输入状态
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+
+  // 图片上传状态
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
+  const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // 生成状态
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskResults, setTaskResults] = useState<Record<string, string[]>>({});
   const [downloadingAll, setDownloadingAll] = useState(false);
-  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
 
-  // 上传参考图片获取URL
+  const currentCategory = CATEGORIES[selectedCategory];
+
+  // 切换分类时重置状态
+  useEffect(() => {
+    setInputValues({});
+    setLogoImageUrl(null);
+    setLogoPreviewUrl(null);
+    setReferenceImageUrl(null);
+    setGenError(null);
+  }, [selectedCategory]);
+
+  // 上传默认参考图片获取URL
   useEffect(() => {
     const uploadReferenceImage = async () => {
       if (!apiKey) return;
       try {
-        const response = await fetch(REFERENCE_IMAGE_PATH);
+        const response = await fetch(currentCategory.defaultImagePath);
+        if (!response.ok) {
+          console.warn("默认参考图片不存在:", currentCategory.defaultImagePath);
+          return;
+        }
         const blob = await response.blob();
-        const file = new File([blob], "nbptutorial.jpeg", { type: "image/jpeg" });
+        const file = new File([blob], currentCategory.defaultImageName, { type: "image/jpeg" });
         const client = new EvolinkClient(apiKey);
         const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover" });
         setReferenceImageUrl(uploadResponse.data.file_url);
@@ -48,19 +121,62 @@ export default function NBCoverPage() {
     if (isAuthenticated) {
       uploadReferenceImage();
     }
-  }, [apiKey, isAuthenticated]);
+  }, [apiKey, isAuthenticated, selectedCategory]);
+
+  // 处理 Logo 图片上传
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 验证文件类型
+    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setGenError("只支持 JPEG, PNG, GIF, WebP 格式的图片");
+      return;
+    }
+
+    // 显示本地预览
+    const previewUrl = URL.createObjectURL(file);
+    setLogoPreviewUrl(previewUrl);
+
+    setUploadingLogo(true);
+    setGenError(null);
+
+    try {
+      const client = new EvolinkClient(apiKey);
+      const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover-logo" });
+      setLogoImageUrl(uploadResponse.data.file_url);
+      console.log("Logo 图片上传成功:", uploadResponse.data.file_url);
+    } catch (err: any) {
+      console.error("Logo 图片上传失败:", err);
+      setGenError("Logo 图片上传失败: " + (err.message || "未知错误"));
+      setLogoPreviewUrl(null);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!apiKey) {
       setGenError("请先在 .env.local 中设置 API Key");
       return;
     }
-    if (!inputText.trim()) {
-      setGenError("请输入封面文字");
-      return;
+
+    // 验证所有必填输入
+    for (const input of currentCategory.inputs) {
+      if (!inputValues[input.key]?.trim()) {
+        setGenError(`请输入${input.label}`);
+        return;
+      }
     }
+
     if (!referenceImageUrl) {
       setGenError("参考图片正在上传中，请稍候...");
+      return;
+    }
+
+    if (currentCategory.needsLogoUpload && !logoImageUrl) {
+      setGenError("请上传 Logo 图片");
       return;
     }
 
@@ -68,21 +184,37 @@ export default function NBCoverPage() {
     setGenLoading(true);
 
     try {
-      const prompt = PROMPT_TEMPLATE.replace("{input text}", inputText.trim());
+      // 构建提示词
+      let prompt = currentCategory.promptTemplate;
+      for (const input of currentCategory.inputs) {
+        prompt = prompt.replace(`{${input.key}}`, inputValues[input.key]?.trim() || "");
+      }
+
+      // 构建图片 URL 列表
+      const imageUrls = [referenceImageUrl];
+      if (currentCategory.needsLogoUpload && logoImageUrl) {
+        imageUrls.push(logoImageUrl);
+      }
+
       const client = new EvolinkClient(apiKey);
       const response = await client.createImageGeneration({
         model: "nano-banana-2-lite",
         prompt: prompt,
         size: "3:4",
         quality: "2K",
-        image_urls: [referenceImageUrl],
+        image_urls: imageUrls,
       });
 
+      // 构建显示文本
+      const displayText = currentCategory.inputs.map(input =>
+        `${input.label}: ${inputValues[input.key]?.trim()}`
+      ).join(" | ");
+
       setTasks((prev) => [
-        { id: response.id, createdAt: Date.now(), inputText: inputText.trim() },
+        { id: response.id, createdAt: Date.now(), inputText: displayText, category: selectedCategory },
         ...prev,
       ]);
-      setInputText("");
+      setInputValues({});
     } catch (err: any) {
       setGenError(err.message || "请求失败");
     } finally {
@@ -159,6 +291,17 @@ export default function NBCoverPage() {
     );
   }
 
+  // 检查生成按钮是否可用
+  const isGenerateDisabled = () => {
+    if (genLoading) return true;
+    if (!referenceImageUrl) return true;
+    if (currentCategory.needsLogoUpload && !logoImageUrl) return true;
+    for (const input of currentCategory.inputs) {
+      if (!inputValues[input.key]?.trim()) return true;
+    }
+    return false;
+  };
+
   return (
     <main className="min-h-screen bg-black text-white p-8">
       <div className="max-w-4xl mx-auto flex flex-col gap-8">
@@ -172,36 +315,112 @@ export default function NBCoverPage() {
               <Link href="/z-image" className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors">Z-Image</Link>
             </div>
           </div>
-          <p className="text-sm text-gray-500">快速生成 Nano Banana 教程封面 · 模型: nano-banana-2-lite · 尺寸: 3:4 · 质量: 2K</p>
+          <p className="text-sm text-gray-500">{currentCategory.description} · 模型: nano-banana-2-lite · 尺寸: 3:4 · 质量: 2K</p>
+        </div>
+
+        {/* Category Selector */}
+        <div className="flex flex-col gap-3">
+          <label className="text-sm font-medium text-white">选择封面类型</label>
+          <div className="flex gap-3">
+            {(Object.keys(CATEGORIES) as CategoryKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSelectedCategory(key)}
+                className={`px-4 py-2 text-sm border transition-colors ${
+                  selectedCategory === key
+                    ? "border-white bg-white text-black"
+                    : "border-gray-700 hover:border-white text-gray-300"
+                }`}
+              >
+                {CATEGORIES[key].name}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Reference Image Preview */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-white">参考图片</label>
+          <label className="text-sm font-medium text-white">默认参考图片</label>
           <div className="flex items-center gap-4">
-            <img src={REFERENCE_IMAGE_PATH} alt="参考图片" className="w-32 h-auto border border-gray-700" />
+            <img
+              src={currentCategory.defaultImagePath}
+              alt="参考图片"
+              className="w-32 h-auto border border-gray-700"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Crect fill='%23333' width='128' height='128'/%3E%3Ctext fill='%23666' x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='12'%3E暂无图片%3C/text%3E%3C/svg%3E";
+              }}
+            />
             <div className="text-xs text-gray-500">
               {referenceImageUrl ? "✅ 已上传" : "⏳ 上传中..."}
             </div>
           </div>
         </div>
 
-        {/* Input Text */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-white">封面文字（替换模板中的 {"{input text}"}）</label>
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder='例如: "AI Tutorial #1"'
-            className="px-4 py-3 bg-black text-white border border-gray-700 focus:border-white focus:outline-none"
-          />
-        </div>
+        {/* Logo Upload (for product-logo category) */}
+        {currentCategory.needsLogoUpload && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-white">Logo 图片 (必须上传)</label>
+            <div className="flex items-center gap-4">
+              {logoPreviewUrl ? (
+                <img
+                  src={logoPreviewUrl}
+                  alt="Logo 预览"
+                  className="w-32 h-auto border border-gray-700"
+                />
+              ) : (
+                <div className="w-32 h-32 border border-dashed border-gray-700 flex items-center justify-center text-gray-500 text-xs">
+                  点击上传 Logo
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleLogoUpload}
+                  disabled={uploadingLogo}
+                  className="hidden"
+                  id="logo-upload-input"
+                />
+                <label
+                  htmlFor="logo-upload-input"
+                  className={`px-3 py-2 text-xs border cursor-pointer transition-colors ${
+                    uploadingLogo
+                      ? "border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed"
+                      : "border-blue-600 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20"
+                  }`}
+                >
+                  {uploadingLogo ? "上传中..." : "📁 选择 Logo 图片"}
+                </label>
+                <span className="text-[10px] text-gray-500">
+                  支持 JPEG, PNG, GIF, WebP
+                </span>
+                {logoImageUrl && (
+                  <span className="text-xs text-green-400">✅ 已上传</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Input Fields */}
+        {currentCategory.inputs.map((input) => (
+          <div key={input.key} className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-white">{input.label}</label>
+            <input
+              type="text"
+              value={inputValues[input.key] || ""}
+              onChange={(e) => setInputValues(prev => ({ ...prev, [input.key]: e.target.value }))}
+              placeholder={input.placeholder}
+              className="px-4 py-3 bg-black text-white border border-gray-700 focus:border-white focus:outline-none"
+            />
+          </div>
+        ))}
 
         {/* Generate Button */}
         <button
           onClick={handleGenerate}
-          disabled={genLoading || !inputText.trim() || !referenceImageUrl}
+          disabled={isGenerateDisabled()}
           className="px-6 py-3 bg-white text-black font-medium hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
         >
           {genLoading ? "生成中..." : "生成封面"}
@@ -232,7 +451,8 @@ export default function NBCoverPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 flex flex-col gap-1">
                       <div className="text-xs text-gray-500">{new Date(task.createdAt).toLocaleString("zh-CN")}</div>
-                      <div className="text-sm text-gray-300">封面文字：<span className="text-yellow-400">{task.inputText}</span></div>
+                      <div className="text-xs text-blue-400">[{CATEGORIES[task.category as CategoryKey]?.name || task.category}]</div>
+                      <div className="text-sm text-gray-300">{task.inputText}</div>
                       <div className="text-xs text-gray-600 font-mono">ID: {task.id}</div>
                     </div>
                     <button onClick={() => removeTask(task.id)} className="text-xs px-3 py-1 border border-gray-700 hover:border-red-500 hover:text-red-500 transition-colors">移除</button>
