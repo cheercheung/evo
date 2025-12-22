@@ -73,6 +73,8 @@ cp .env.example .env.local
 
 ```bash
 NEXT_PUBLIC_EVOLINK_API_KEY=sk-your-api-key-here
+# 文件上传鉴权 token（必填，用于文件上传接口）
+NEXT_PUBLIC_UPLOAD_AUTH_TOKEN=your-upload-token
 ```
 
 > 💡 从 [Evolink 控制台](https://evolink.ai/dashboard/keys) 获取你的 API Key
@@ -169,4 +171,3 @@ npm start
 ## License
 
 ISC
-

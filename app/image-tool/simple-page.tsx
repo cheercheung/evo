@@ -28,13 +28,17 @@ export default function SimpleImageToolPage() {
     setTaskId("");
 
     try {
-      const client = new EvolinkClient(apiKey);
+      const client = new EvolinkClient(
+        apiKey,
+        process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN
+      );
 
       // 先上传所有图片
       const imageUrls: string[] = [];
       for (const file of data.imageFiles) {
         const uploadResponse = await client.uploadFile(file, {
           uploadPath: "image-generation",
+          authToken: process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN,
         });
         imageUrls.push(uploadResponse.data.file_url);
       }
@@ -87,4 +91,3 @@ export default function SimpleImageToolPage() {
     </main>
   );
 }
-

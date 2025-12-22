@@ -17,9 +17,12 @@ const USE_PROXY = typeof window !== "undefined"; // 只在浏览器端使用代�
 
 export class EvolinkClient {
   private apiKey: string;
+  private uploadAuthToken?: string;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, uploadAuthToken?: string) {
     this.apiKey = apiKey;
+    this.uploadAuthToken =
+      uploadAuthToken || process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN;
   }
 
   private async request<T>(
@@ -216,6 +219,7 @@ export class EvolinkClient {
     options?: {
       uploadPath?: string;
       fileName?: string;
+      authToken?: string;
     }
   ): Promise<FileUploadResponse> {
     const formData = new FormData();
@@ -229,6 +233,14 @@ export class EvolinkClient {
       formData.append("file_name", options.fileName);
     }
 
+    const uploadToken = options?.authToken || this.uploadAuthToken;
+
+    if (!uploadToken) {
+      throw new Error(
+        "缺少上传鉴权 token，请设置 NEXT_PUBLIC_UPLOAD_AUTH_TOKEN 或在调用时传入 authToken"
+      );
+    }
+
     const url = `${FILES_API_BASE_URL}/api/v1/files/upload/stream`;
 
     console.log("📤 上传文件:", {
@@ -236,13 +248,14 @@ export class EvolinkClient {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
+      tokenPreview: `${uploadToken.substring(0, 6)}...`,
     });
 
     try {
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${uploadToken}`,
         },
         body: formData,
       });
@@ -315,4 +328,3 @@ export class EvolinkClient {
     });
   }
 }
-

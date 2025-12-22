@@ -43,6 +43,7 @@ export default function ImageUploader({
 
       const response = await client.uploadFile(file, {
         uploadPath: "image-generation",
+        authToken: process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN,
       });
 
       console.log("文件上传成功:", response.data);
@@ -146,4 +147,3 @@ export default function ImageUploader({
     </div>
   );
 }
-

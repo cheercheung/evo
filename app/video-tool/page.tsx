@@ -51,7 +51,10 @@ export default function VideoToolPage() {
     setGenLoading(true);
 
     try {
-      const client = new EvolinkClient(apiKey);
+      const client = new EvolinkClient(
+        apiKey,
+        process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN
+      );
       const isImageToVideo = data.model === "wan2.6-image-to-video";
 
       // 如果是图生视频模式，先上传图片
@@ -59,6 +62,7 @@ export default function VideoToolPage() {
       if (isImageToVideo && data.imageFile) {
         const uploadResponse = await client.uploadFile(data.imageFile, {
           uploadPath: "video-generation",
+          authToken: process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN,
         });
         imageUrls = [uploadResponse.data.file_url];
       }
@@ -254,4 +258,3 @@ export default function VideoToolPage() {
     </main>
   );
 }
-
