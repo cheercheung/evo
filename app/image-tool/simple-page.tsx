@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { EvolinkClient } from "@/lib/evolink-client";
+import { useEnvConfig } from "@/lib/hooks/useEnvConfig";
+import { useEvolinkClient } from "@/lib/hooks/useEvolinkClient";
 import SimpleImageGenerationForm from "@/components/SimpleImageGenerationForm";
 import AutoTaskQuery from "@/components/AutoTaskQuery";
 
 export default function SimpleImageToolPage() {
-  const apiKey = process.env.NEXT_PUBLIC_EVOLINK_API_KEY || "";
+  const { apiKey, uploadAuthToken } = useEnvConfig();
+  const effectiveApiKey = apiKey ?? "";
+  const effectiveUploadToken = uploadAuthToken;
+  const client = useEvolinkClient();
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [taskId, setTaskId] = useState("");
@@ -18,7 +22,7 @@ export default function SimpleImageToolPage() {
     quality: any;
     imageFiles: File[];
   }) => {
-    if (!apiKey) {
+    if (!effectiveApiKey) {
       setGenError("请先在 .env.local 中设置 API Key");
       return;
     }
@@ -28,17 +32,12 @@ export default function SimpleImageToolPage() {
     setTaskId("");
 
     try {
-      const client = new EvolinkClient(
-        apiKey,
-        process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN
-      );
-
       // 先上传所有图片
       const imageUrls: string[] = [];
       for (const file of data.imageFiles) {
         const uploadResponse = await client.uploadFile(file, {
           uploadPath: "image-generation",
-          authToken: process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN,
+          authToken: effectiveUploadToken,
         });
         imageUrls.push(uploadResponse.data.file_url);
       }
@@ -73,7 +72,7 @@ export default function SimpleImageToolPage() {
 
         {/* Generation Form */}
         <SimpleImageGenerationForm
-          apiKey={apiKey}
+          apiKey={effectiveApiKey}
           onSubmit={handleGenerate}
           loading={genLoading}
           error={genError}
@@ -84,7 +83,7 @@ export default function SimpleImageToolPage() {
         {taskId && (
           <div className="flex flex-col gap-4 border-t border-gray-800 pt-8">
             <h2 className="text-xl font-bold">生成结果</h2>
-            <AutoTaskQuery apiKey={apiKey} taskId={taskId} />
+            <AutoTaskQuery apiKey={effectiveApiKey} taskId={taskId} />
           </div>
         )}
       </div>

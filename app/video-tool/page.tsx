@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { EvolinkClient } from "@/lib/evolink-client";
+import { useEnvConfig } from "@/lib/hooks/useEnvConfig";
+import { useEvolinkClient } from "@/lib/hooks/useEvolinkClient";
+import { useTaskList } from "@/lib/hooks/useTaskList";
 import VideoGenerationForm from "@/components/VideoGenerationForm";
 import type {
   VideoModel,
@@ -12,6 +14,7 @@ import type {
   VideoShotType,
 } from "@/types/evolink";
 import AutoVideoTaskQuery from "@/components/AutoVideoTaskQuery";
+import { TaskCard } from "@/components/TaskCard";
 
 interface Task {
   id: string;
@@ -22,14 +25,16 @@ interface Task {
 const CORRECT_PASSWORD = "lyj";
 
 export default function VideoToolPage() {
-  const apiKey = process.env.NEXT_PUBLIC_EVOLINK_API_KEY || "";
+  const { apiKey, uploadAuthToken } = useEnvConfig();
+  const effectiveApiKey = apiKey ?? "";
+  const effectiveUploadToken = uploadAuthToken;
+  const client = useEvolinkClient();
+  const { tasks, results, addTask, removeTask, clear, updateResults } = useTaskList();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [taskResults, setTaskResults] = useState<Record<string, string[]>>({});
 
   const handleGenerate = async (data: {
     model: VideoModel;
@@ -42,7 +47,7 @@ export default function VideoToolPage() {
     callbackUrl: string;
     imageFile: File | null;
   }) => {
-    if (!apiKey) {
+    if (!effectiveApiKey) {
       setGenError("请先在 .env.local 中设置 API Key");
       return;
     }
@@ -51,10 +56,6 @@ export default function VideoToolPage() {
     setGenLoading(true);
 
     try {
-      const client = new EvolinkClient(
-        apiKey,
-        process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN
-      );
       const isImageToVideo = data.model === "wan2.6-image-to-video";
 
       // 如果是图生视频模式，先上传图片
@@ -62,7 +63,7 @@ export default function VideoToolPage() {
       if (isImageToVideo && data.imageFile) {
         const uploadResponse = await client.uploadFile(data.imageFile, {
           uploadPath: "video-generation",
-          authToken: process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN,
+          authToken: effectiveUploadToken,
         });
         imageUrls = [uploadResponse.data.file_url];
       }
@@ -81,35 +82,16 @@ export default function VideoToolPage() {
         callback_url: data.callbackUrl || undefined,
       });
 
-      setTasks((prev) => [
-        {
-          id: response.id,
-          createdAt: Date.now(),
-          prompt: data.prompt,
-        },
-        ...prev,
-      ]);
+      addTask({
+        id: response.id,
+        createdAt: Date.now(),
+        prompt: data.prompt,
+      });
     } catch (err: any) {
       setGenError(err.message || "请求失败");
     } finally {
       setGenLoading(false);
     }
-  };
-
-  const removeTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
-    setTaskResults((prev) => {
-      const newResults = { ...prev };
-      delete newResults[taskId];
-      return newResults;
-    });
-  };
-
-  const updateTaskResults = (taskId: string, videoUrls: string[]) => {
-    setTaskResults((prev) => ({
-      ...prev,
-      [taskId]: videoUrls,
-    }));
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
@@ -206,10 +188,7 @@ export default function VideoToolPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">任务列表 ({tasks.length})</h2>
               <button
-                onClick={() => {
-                  setTasks([]);
-                  setTaskResults({});
-                }}
+                onClick={clear}
                 className="text-xs px-3 py-1 border border-gray-700 hover:border-white transition-colors"
               >
                 清空全部
@@ -218,38 +197,21 @@ export default function VideoToolPage() {
 
             <div className="flex flex-col gap-6">
               {tasks.map((task) => (
-                <div
+                <TaskCard
                   key={task.id}
-                  className="border border-gray-800 p-6 flex flex-col gap-4"
+                  id={task.id}
+                  createdAt={task.createdAt}
+                  title={`提示词：${task.prompt}`}
+                  onRemove={() => removeTask(task.id)}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 flex flex-col gap-1">
-                      <div className="text-xs text-gray-500">
-                        {new Date(task.createdAt).toLocaleString("zh-CN")}
-                      </div>
-                      <div className="text-sm text-gray-300">
-                        提示词：{task.prompt}
-                      </div>
-                      <div className="text-xs text-gray-600 font-mono">
-                        ID: {task.id}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeTask(task.id)}
-                      className="text-xs px-3 py-1 border border-gray-700 hover:border-red-500 hover:text-red-500 transition-colors"
-                    >
-                      移除
-                    </button>
-                  </div>
-
                   <AutoVideoTaskQuery
-                    apiKey={apiKey}
+                    apiKey={effectiveApiKey}
                     taskId={task.id}
                     onResultsUpdate={(videoUrls) =>
-                      updateTaskResults(task.id, videoUrls)
+                      updateResults(task.id, videoUrls)
                     }
                   />
-                </div>
+                </TaskCard>
               ))}
             </div>
           </div>

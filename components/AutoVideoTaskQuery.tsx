@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { EvolinkClient } from "@/lib/evolink-client";
+import React, { useEffect, useRef, useState } from "react";
 import type { TaskQueryResponse } from "@/types/evolink";
+import { useTaskPolling } from "@/lib/hooks/useTaskPolling";
 
 interface AutoVideoTaskQueryProps {
   apiKey: string;
@@ -17,53 +17,27 @@ export default function AutoVideoTaskQuery({
   onComplete,
   onResultsUpdate,
 }: AutoVideoTaskQueryProps) {
-  const [taskData, setTaskData] = useState<TaskQueryResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const onResultsUpdateRef = useRef(onResultsUpdate);
 
   useEffect(() => {
-    if (!taskId || !apiKey) return;
+    onResultsUpdateRef.current = onResultsUpdate;
+  }, [onResultsUpdate]);
 
-    let intervalId: NodeJS.Timeout | null = null;
-    let isCompleted = false;
-
-    const queryTask = async () => {
-      if (isCompleted) return; // 已完成时不再查询
-
-      try {
-        const client = new EvolinkClient(apiKey);
-        const response = await client.queryTask(taskId);
-        setTaskData(response);
-
-        if (response.results && response.results.length > 0 && onResultsUpdate) {
-          onResultsUpdate(response.results);
-        }
-
-        if (response.status === "completed" || response.status === "failed") {
-          isCompleted = true;
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
-          if (response.status === "completed" && onComplete) {
-            onComplete();
-          }
-        }
-      } catch (err: any) {
-        setError(err.message || "查询失败");
+  const { data: taskData, error, loading } = useTaskPolling(apiKey, taskId, {
+    intervalMs: 5000,
+    onComplete: (res) => {
+      if (res.status === "completed") {
+        onComplete?.();
       }
-    };
+    },
+  });
 
-    queryTask();
-    intervalId = setInterval(queryTask, 5000); // 视频生成较慢，5秒查询一次
-
-    return () => {
-      isCompleted = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [taskId, apiKey, onComplete, onResultsUpdate]);
+  useEffect(() => {
+    if (taskData?.results?.length) {
+      onResultsUpdateRef.current?.(taskData.results);
+    }
+  }, [taskData?.results?.join("|")]);
 
   const downloadVideo = async (url: string, index: number) => {
     try {
@@ -95,7 +69,7 @@ export default function AutoVideoTaskQuery({
     );
   }
 
-  if (!taskData) {
+  if (!taskData || loading) {
     return (
       <div className="flex items-center gap-2 text-white">
         <div className="animate-spin w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full"></div>
@@ -165,4 +139,3 @@ export default function AutoVideoTaskQuery({
     </div>
   );
 }
-

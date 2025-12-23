@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useEffect } from "react";
 import type { TaskQueryResponse } from "@/types/evolink";
@@ -23,6 +24,7 @@ export default function TaskQueryForm({
   // Update taskId when initialTaskId changes
   useEffect(() => {
     if (initialTaskId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaskId(initialTaskId);
     }
   }, [initialTaskId]);
@@ -138,4 +140,3 @@ export default function TaskQueryForm({
     </form>
   );
 }
-

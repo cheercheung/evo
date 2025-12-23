@@ -2,10 +2,13 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { EvolinkClient } from "@/lib/evolink-client";
+import { useEnvConfig } from "@/lib/hooks/useEnvConfig";
+import { useEvolinkClient } from "@/lib/hooks/useEvolinkClient";
+import { useTaskList } from "@/lib/hooks/useTaskList";
 import ZImageGenerationForm from "@/components/ZImageGenerationForm";
 import AutoTaskQuery from "@/components/AutoTaskQuery";
 import type { ZImageModel, ZImageSize } from "@/types/evolink";
+import { TaskCard } from "@/components/TaskCard";
 
 interface Task {
   id: string;
@@ -16,14 +19,15 @@ interface Task {
 const CORRECT_PASSWORD = "lyj";
 
 export default function ZImagePage() {
-  const apiKey = process.env.NEXT_PUBLIC_EVOLINK_API_KEY || "";
+  const { apiKey } = useEnvConfig();
+  const effectiveApiKey = apiKey ?? "";
+  const client = useEvolinkClient();
+  const { tasks, results, addTask, removeTask, clear, updateResults, totalResultCount } = useTaskList();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [taskResults, setTaskResults] = useState<Record<string, string[]>>({});
   const [downloadingAll, setDownloadingAll] = useState(false);
 
   const handleGenerate = async (data: {
@@ -33,7 +37,7 @@ export default function ZImagePage() {
     seed?: number;
     nsfw_check: boolean;
   }) => {
-    if (!apiKey) {
+    if (!effectiveApiKey) {
       setGenError("请先在 .env.local 中设置 API Key");
       return;
     }
@@ -42,7 +46,6 @@ export default function ZImagePage() {
     setGenLoading(true);
 
     try {
-      const client = new EvolinkClient(apiKey);
       const response = await client.createZImageGeneration({
         model: data.model,
         prompt: data.prompt,
@@ -51,32 +54,16 @@ export default function ZImagePage() {
         nsfw_check: data.nsfw_check,
       });
 
-      setTasks((prev) => [
-        {
-          id: response.id,
-          createdAt: Date.now(),
-          prompt: data.prompt,
-        },
-        ...prev,
-      ]);
+      addTask({
+        id: response.id,
+        createdAt: Date.now(),
+        prompt: data.prompt,
+      });
     } catch (err: any) {
       setGenError(err.message || "请求失败");
     } finally {
       setGenLoading(false);
     }
-  };
-
-  const removeTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
-    setTaskResults((prev) => {
-      const newResults = { ...prev };
-      delete newResults[taskId];
-      return newResults;
-    });
-  };
-
-  const updateTaskResults = (taskId: string, imageUrls: string[]) => {
-    setTaskResults((prev) => ({ ...prev, [taskId]: imageUrls }));
   };
 
   const downloadImage = async (url: string, filename: string) => {
@@ -100,7 +87,7 @@ export default function ZImagePage() {
     setDownloadingAll(true);
     let imageIndex = 1;
     for (const task of tasks) {
-      const imageUrls = taskResults[task.id];
+      const imageUrls = results[task.id];
       if (imageUrls && imageUrls.length > 0) {
         for (const url of imageUrls) {
           await downloadImage(url, `z-image-${imageIndex}.png`);
@@ -110,10 +97,6 @@ export default function ZImagePage() {
       }
     }
     setDownloadingAll(false);
-  };
-
-  const getTotalImageCount = () => {
-    return Object.values(taskResults).reduce((total, urls) => total + urls.length, 0);
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
@@ -176,7 +159,7 @@ export default function ZImagePage() {
 
         {/* Generation Form */}
         <ZImageGenerationForm
-          apiKey={apiKey}
+          apiKey={effectiveApiKey}
           onSubmit={handleGenerate}
           loading={genLoading}
           error={genError}
@@ -188,17 +171,17 @@ export default function ZImagePage() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">任务列表 ({tasks.length})</h2>
               <div className="flex gap-2">
-                {getTotalImageCount() > 0 && (
+                {totalResultCount > 0 && (
                   <button
                     onClick={downloadAllImages}
                     disabled={downloadingAll}
                     className="text-sm px-4 py-2 bg-white text-black hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-600 transition-colors font-medium"
                   >
-                    {downloadingAll ? "下载中..." : `一键下载全部 (${getTotalImageCount()} 张)`}
+                    {downloadingAll ? "下载中..." : `一键下载全部 (${totalResultCount} 张)`}
                   </button>
                 )}
                 <button
-                  onClick={() => { setTasks([]); setTaskResults({}); }}
+                  onClick={clear}
                   className="text-xs px-3 py-1 border border-gray-700 hover:border-white transition-colors"
                 >
                   清空全部
@@ -208,28 +191,19 @@ export default function ZImagePage() {
 
             <div className="flex flex-col gap-6">
               {tasks.map((task) => (
-                <div key={task.id} className="border border-gray-800 p-6 flex flex-col gap-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 flex flex-col gap-1">
-                      <div className="text-xs text-gray-500">
-                        {new Date(task.createdAt).toLocaleString("zh-CN")}
-                      </div>
-                      <div className="text-sm text-gray-300">提示词：{task.prompt}</div>
-                      <div className="text-xs text-gray-600 font-mono">ID: {task.id}</div>
-                    </div>
-                    <button
-                      onClick={() => removeTask(task.id)}
-                      className="text-xs px-3 py-1 border border-gray-700 hover:border-red-500 hover:text-red-500 transition-colors"
-                    >
-                      移除
-                    </button>
-                  </div>
+                <TaskCard
+                  key={task.id}
+                  id={task.id}
+                  createdAt={task.createdAt}
+                  title={`提示词：${task.prompt}`}
+                  onRemove={() => removeTask(task.id)}
+                >
                   <AutoTaskQuery
-                    apiKey={apiKey}
+                    apiKey={effectiveApiKey}
                     taskId={task.id}
-                    onResultsUpdate={(imageUrls) => updateTaskResults(task.id, imageUrls)}
+                    onResultsUpdate={(imageUrls) => updateResults(task.id, imageUrls)}
                   />
-                </div>
+                </TaskCard>
               ))}
             </div>
           </div>
@@ -238,4 +212,3 @@ export default function ZImagePage() {
     </main>
   );
 }
-

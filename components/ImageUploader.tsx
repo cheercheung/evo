@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useRef } from "react";
 import { EvolinkClient } from "@/lib/evolink-client";

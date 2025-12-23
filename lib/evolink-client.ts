@@ -1,85 +1,51 @@
+import { loadPublicConfig } from "@/lib/config";
+import { httpRequest, sanitizePayload } from "@/lib/http";
 import type {
+  FileUploadResponse,
   ImageGenerationRequest,
   ImageGenerationResponse,
   TaskQueryResponse,
-  ErrorResponse,
-  FileUploadResponse,
-  ZImageGenerationRequest,
   VideoGenerationRequest,
   VideoGenerationResponse,
+  ZImageGenerationRequest,
 } from "@/types/evolink";
 
-const API_BASE_URL = "https://api.evolink.ai";
-const FILES_API_BASE_URL = "https://files-api.evolink.ai";
-
-// 使用代理模式避免 CORS 问题
-const USE_PROXY = typeof window !== "undefined"; // 只在浏览器端使用代理
+interface ClientOptions {
+  useProxy?: boolean;
+}
 
 export class EvolinkClient {
   private apiKey: string;
   private uploadAuthToken?: string;
+  private readonly config = loadPublicConfig();
+  private readonly useProxy: boolean;
 
-  constructor(apiKey: string, uploadAuthToken?: string) {
-    this.apiKey = apiKey;
-    this.uploadAuthToken =
-      uploadAuthToken || process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN;
+  constructor(apiKey?: string, uploadAuthToken?: string, options?: ClientOptions) {
+    this.apiKey = apiKey || this.config.apiKey || "";
+    this.uploadAuthToken = uploadAuthToken || this.config.uploadAuthToken;
+    this.useProxy = options?.useProxy ?? this.config.useProxy;
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const headers = {
-      Authorization: `Bearer ${this.apiKey}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
-
-    console.log("🌐 API 请求:", {
-      url,
-      method: options.method || "GET",
-      headers: {
-        ...headers,
-        Authorization: `Bearer ${this.apiKey.substring(0, 10)}...`,
-      },
-    });
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      console.log("📡 API 响应状态:", response.status, response.statusText);
-
-      let data;
-      try {
-        data = await response.json();
-        console.log("📦 API 响应数据:", data);
-      } catch (parseError) {
-        console.error("❌ JSON 解析失败:", parseError);
-        throw new Error("Invalid JSON response from API");
-      }
-
-      if (!response.ok) {
-        const error = data as ErrorResponse;
-        const errorMessage =
-          error.error?.message || `API Error: ${response.status}`;
-        console.error("❌ API 错误:", errorMessage, data);
-        throw new Error(errorMessage);
-      }
-
-      return data as T;
-    } catch (error: any) {
-      console.error("❌ 请求失败:", error);
-      if (error.message === "Failed to fetch") {
-        throw new Error(
-          "网络请求失败，可能是 CORS 问题或网络连接问题。请检查：\n1. API Key 是否正确\n2. 网络连接是否正常\n3. 浏览器控制台是否有 CORS 错误"
-        );
-      }
-      throw error;
+  private requireApiKey(): string {
+    if (!this.apiKey) {
+      throw new Error("缺少 API Key，请在 .env.local 配置 NEXT_PUBLIC_EVOLINK_API_KEY 或传入构造函数");
     }
+    return this.apiKey;
+  }
+
+  private getJsonHeaders() {
+    return { "Content-Type": "application/json" };
+  }
+
+  private apiPath(path: string): { baseUrl: string; path: string; apiKey?: string } {
+    if (this.useProxy) {
+      return { baseUrl: "", path };
+    }
+    return {
+      baseUrl: this.config.apiBaseUrl,
+      path,
+      apiKey: this.requireApiKey(),
+    };
   }
 
   /**
@@ -89,51 +55,20 @@ export class EvolinkClient {
   async createImageGeneration(
     request: ImageGenerationRequest
   ): Promise<ImageGenerationResponse> {
-    // Filter out empty image URLs
-    const cleanedRequest = {
+    const payload = sanitizePayload({
       ...request,
       image_urls: request.image_urls?.filter(Boolean),
-    };
-
-    // Remove undefined fields
-    Object.keys(cleanedRequest).forEach((key) => {
-      if (
-        cleanedRequest[key as keyof typeof cleanedRequest] === undefined ||
-        (Array.isArray(cleanedRequest[key as keyof typeof cleanedRequest]) &&
-          (cleanedRequest[key as keyof typeof cleanedRequest] as any[])
-            .length === 0)
-      ) {
-        delete cleanedRequest[key as keyof typeof cleanedRequest];
-      }
     });
 
-    console.log("发送到 API 的请求数据:", cleanedRequest);
+    const target = this.apiPath("/v1/images/generations");
+    const path = this.useProxy ? "/api/generate" : target.path;
 
-    // 使用代理避免 CORS
-    if (USE_PROXY) {
-      console.log("🔄 使用代理模式");
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(cleanedRequest),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error?.message || `API Error: ${response.status}`
-        );
-      }
-
-      return data as ImageGenerationResponse;
-    }
-
-    return this.request<ImageGenerationResponse>("/v1/images/generations", {
+    return httpRequest<ImageGenerationResponse>(path, {
       method: "POST",
-      body: JSON.stringify(cleanedRequest),
+      body: JSON.stringify(payload),
+      headers: this.getJsonHeaders(),
+      baseUrl: target.baseUrl,
+      apiKey: target.apiKey,
     });
   }
 
@@ -144,41 +79,16 @@ export class EvolinkClient {
   async createZImageGeneration(
     request: ZImageGenerationRequest
   ): Promise<ImageGenerationResponse> {
-    // Remove undefined fields
-    const cleanedRequest = { ...request };
-    Object.keys(cleanedRequest).forEach((key) => {
-      if (cleanedRequest[key as keyof typeof cleanedRequest] === undefined) {
-        delete cleanedRequest[key as keyof typeof cleanedRequest];
-      }
-    });
+    const payload = sanitizePayload(request);
+    const target = this.apiPath("/v1/images/generations");
+    const path = this.useProxy ? "/api/generate" : target.path;
 
-    console.log("发送到 Z-Image API 的请求数据:", cleanedRequest);
-
-    // 使用代理避免 CORS
-    if (USE_PROXY) {
-      console.log("🔄 使用代理模式");
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(cleanedRequest),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error?.message || `API Error: ${response.status}`
-        );
-      }
-
-      return data as ImageGenerationResponse;
-    }
-
-    return this.request<ImageGenerationResponse>("/v1/images/generations", {
+    return httpRequest<ImageGenerationResponse>(path, {
       method: "POST",
-      body: JSON.stringify(cleanedRequest),
+      body: JSON.stringify(payload),
+      headers: this.getJsonHeaders(),
+      baseUrl: target.baseUrl,
+      apiKey: target.apiKey,
     });
   }
 
@@ -187,26 +97,13 @@ export class EvolinkClient {
    * GET /v1/tasks/{task_id}
    */
   async queryTask(taskId: string): Promise<TaskQueryResponse> {
-    // 使用代理避免 CORS
-    if (USE_PROXY) {
-      console.log("🔄 使用代理查询任务:", taskId);
-      const response = await fetch(`/api/query/${taskId}`, {
-        method: "GET",
-      });
+    const target = this.apiPath(`/v1/tasks/${taskId}`);
+    const path = this.useProxy ? `/api/query/${taskId}` : target.path;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error?.message || `API Error: ${response.status}`
-        );
-      }
-
-      return data as TaskQueryResponse;
-    }
-
-    return this.request<TaskQueryResponse>(`/v1/tasks/${taskId}`, {
+    return httpRequest<TaskQueryResponse>(path, {
       method: "GET",
+      baseUrl: target.baseUrl,
+      apiKey: target.apiKey,
     });
   }
 
@@ -234,53 +131,22 @@ export class EvolinkClient {
     }
 
     const uploadToken = options?.authToken || this.uploadAuthToken;
-
     if (!uploadToken) {
       throw new Error(
         "缺少上传鉴权 token，请设置 NEXT_PUBLIC_UPLOAD_AUTH_TOKEN 或在调用时传入 authToken"
       );
     }
 
-    const url = `${FILES_API_BASE_URL}/api/v1/files/upload/stream`;
-
-    console.log("📤 上传文件:", {
-      url,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      tokenPreview: `${uploadToken.substring(0, 6)}...`,
-    });
-
-    try {
-      const response = await fetch(url, {
+    return httpRequest<FileUploadResponse>(
+      "/api/v1/files/upload/stream",
+      {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${uploadToken}`,
-        },
         body: formData,
-      });
-
-      console.log("📡 上传响应状态:", response.status, response.statusText);
-
-      const data = await response.json();
-      console.log("📦 上传响应数据:", data);
-
-      if (!response.ok || !data.success) {
-        const errorMessage = data.msg || `Upload failed: ${response.status}`;
-        console.error("❌ 上传失败:", errorMessage);
-        throw new Error(errorMessage);
+        baseUrl: this.config.filesApiBaseUrl,
+        apiKey: uploadToken,
+        json: false,
       }
-
-      return data as FileUploadResponse;
-    } catch (error: any) {
-      console.error("❌ 上传请求失败:", error);
-      if (error.message === "Failed to fetch") {
-        throw new Error(
-          "文件上传失败，可能是网络问题或 CORS 限制"
-        );
-      }
-      throw error;
-    }
+    );
   }
 
   /**
@@ -290,41 +156,16 @@ export class EvolinkClient {
   async createVideoGeneration(
     request: VideoGenerationRequest
   ): Promise<VideoGenerationResponse> {
-    // Remove undefined fields
-    const cleanedRequest = { ...request };
-    Object.keys(cleanedRequest).forEach((key) => {
-      if (cleanedRequest[key as keyof typeof cleanedRequest] === undefined) {
-        delete cleanedRequest[key as keyof typeof cleanedRequest];
-      }
-    });
+    const payload = sanitizePayload(request);
+    const target = this.apiPath("/v1/videos/generations");
+    const path = this.useProxy ? "/api/video" : target.path;
 
-    console.log("发送到视频生成 API 的请求数据:", cleanedRequest);
-
-    // 使用代理避免 CORS
-    if (USE_PROXY) {
-      console.log("🔄 使用代理模式");
-      const response = await fetch("/api/video", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(cleanedRequest),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error?.message || `API Error: ${response.status}`
-        );
-      }
-
-      return data as VideoGenerationResponse;
-    }
-
-    return this.request<VideoGenerationResponse>("/v1/videos/generations", {
+    return httpRequest<VideoGenerationResponse>(path, {
       method: "POST",
-      body: JSON.stringify(cleanedRequest),
+      body: JSON.stringify(payload),
+      headers: this.getJsonHeaders(),
+      baseUrl: target.baseUrl,
+      apiKey: target.apiKey,
     });
   }
 }

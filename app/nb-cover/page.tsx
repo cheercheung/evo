@@ -1,9 +1,14 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { EvolinkClient } from "@/lib/evolink-client";
+import { useEnvConfig } from "@/lib/hooks/useEnvConfig";
+import { useEvolinkClient } from "@/lib/hooks/useEvolinkClient";
+import { useTaskList } from "@/lib/hooks/useTaskList";
+import type { Model } from "@/types/evolink";
 import AutoTaskQuery from "@/components/AutoTaskQuery";
+import { TaskCard } from "@/components/TaskCard";
 
 interface Task {
   id: string;
@@ -64,7 +69,11 @@ On the right side of the image, prominent yellow text reads "{text1}" with a sma
 const CORRECT_PASSWORD = "lyj";
 
 export default function NBCoverPage() {
-  const apiKey = process.env.NEXT_PUBLIC_EVOLINK_API_KEY || "";
+  const { apiKey, uploadAuthToken } = useEnvConfig();
+  const effectiveApiKey = apiKey ?? "";
+  const effectiveUploadToken = uploadAuthToken;
+  const client = useEvolinkClient();
+  const { tasks, results, addTask, removeTask, clear, updateResults, totalResultCount } = useTaskList();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState(false);
@@ -83,7 +92,7 @@ export default function NBCoverPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const historySectionRef = useRef<HTMLDivElement | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("nano-banana-2-lite");
+  const [selectedModel, setSelectedModel] = useState<Model>("nano-banana-2-lite");
 
   // 预设 Logo 列表
   const [presetLogos, setPresetLogos] = useState<{ name: string; path: string }[]>([]);
@@ -92,8 +101,6 @@ export default function NBCoverPage() {
   // 生成状态
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [taskResults, setTaskResults] = useState<Record<string, string[]>>({});
   const [downloadingAll, setDownloadingAll] = useState(false);
 
   const currentCategory = CATEGORIES[selectedCategory];
@@ -133,8 +140,8 @@ export default function NBCoverPage() {
   // 上传默认参考图片获取URL
   useEffect(() => {
     const uploadReferenceImage = async () => {
-      if (!apiKey) return;
-      const uploadToken = process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN;
+      if (!effectiveApiKey) return;
+      const uploadToken = effectiveUploadToken;
       if (!uploadToken) {
         console.warn("缺少上传鉴权 token，无法上传默认参考图片");
         return;
@@ -147,7 +154,6 @@ export default function NBCoverPage() {
         }
         const blob = await response.blob();
         const file = new File([blob], currentCategory.defaultImageName, { type: "image/jpeg" });
-        const client = new EvolinkClient(apiKey, uploadToken);
         const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover", authToken: uploadToken });
         setReferenceImageUrl(uploadResponse.data.file_url);
         console.log("参考图片上传成功:", uploadResponse.data.file_url);
@@ -158,7 +164,7 @@ export default function NBCoverPage() {
     if (isAuthenticated) {
       uploadReferenceImage();
     }
-  }, [apiKey, isAuthenticated, selectedCategory]);
+  }, [client, currentCategory.defaultImageName, currentCategory.defaultImagePath, effectiveApiKey, effectiveUploadToken, isAuthenticated, selectedCategory]);
 
   // 处理 Logo 图片上传
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,8 +186,7 @@ export default function NBCoverPage() {
     setGenError(null);
 
     try {
-      const uploadToken = process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN;
-      const client = new EvolinkClient(apiKey, uploadToken);
+      const uploadToken = effectiveUploadToken;
       const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover-logo", authToken: uploadToken });
       setLogoImageUrl(uploadResponse.data.file_url);
       console.log("Logo 图片上传成功:", uploadResponse.data.file_url);
@@ -208,8 +213,7 @@ export default function NBCoverPage() {
       const fileName = logoPath.split("/").pop() || "preset-logo.png";
       const file = new File([blob], fileName, { type: blob.type });
 
-      const uploadToken = process.env.NEXT_PUBLIC_UPLOAD_AUTH_TOKEN;
-      const client = new EvolinkClient(apiKey, uploadToken);
+      const uploadToken = effectiveUploadToken;
       const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover-logo", authToken: uploadToken });
       setLogoImageUrl(uploadResponse.data.file_url);
       console.log("预设 Logo 上传成功:", uploadResponse.data.file_url);
@@ -223,7 +227,7 @@ export default function NBCoverPage() {
   };
 
   const handleGenerate = async () => {
-    if (!apiKey) {
+    if (!effectiveApiKey) {
       setGenError("请先在 .env.local 中设置 API Key");
       return;
     }
@@ -262,7 +266,6 @@ export default function NBCoverPage() {
         imageUrls.push(logoImageUrl);
       }
 
-      const client = new EvolinkClient(apiKey);
       const response = await client.createImageGeneration({
         model: selectedModel,
         prompt: prompt,
@@ -276,25 +279,18 @@ export default function NBCoverPage() {
         `${input.label}: ${inputValues[input.key]?.trim()}`
       ).join(" | ");
 
-      setTasks((prev) => [
-        { id: response.id, createdAt: Date.now(), inputText: displayText, category: selectedCategory },
-        ...prev,
-      ]);
+      addTask({
+        id: response.id,
+        createdAt: Date.now(),
+        prompt: displayText,
+        meta: { category: selectedCategory },
+      });
       setInputValues({});
     } catch (err: any) {
       setGenError(err.message || "请求失败");
     } finally {
       setGenLoading(false);
     }
-  };
-
-  const removeTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
-    setTaskResults((prev) => { const r = { ...prev }; delete r[taskId]; return r; });
-  };
-
-  const updateTaskResults = (taskId: string, imageUrls: string[]) => {
-    setTaskResults((prev) => ({ ...prev, [taskId]: imageUrls }));
   };
 
   const downloadImage = async (url: string, filename: string) => {
@@ -316,7 +312,7 @@ export default function NBCoverPage() {
     setDownloadingAll(true);
     let idx = 1;
     for (const task of tasks) {
-      const urls = taskResults[task.id];
+      const urls = results[task.id];
       if (urls?.length) {
         for (const url of urls) {
           await downloadImage(url, `nb-cover-${idx}.png`);
@@ -327,8 +323,6 @@ export default function NBCoverPage() {
     }
     setDownloadingAll(false);
   };
-
-  const getTotalImageCount = () => Object.values(taskResults).reduce((t, u) => t + u.length, 0);
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -369,7 +363,7 @@ export default function NBCoverPage() {
   };
 
   const latestTask = tasks[0];
-  const latestPreviewImage = latestTask ? taskResults[latestTask.id]?.[0] : null;
+  const latestPreviewImage = latestTask ? results[latestTask.id]?.[0] : null;
   const previewImage = latestPreviewImage || currentCategory.sampleImagePath || currentCategory.defaultImagePath;
   const previewLabel = latestPreviewImage ? "最新生成预览" : currentCategory.sampleImagePath ? "效果示例" : "默认参考图片";
 
@@ -554,7 +548,7 @@ export default function NBCoverPage() {
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <button
                     onClick={downloadAllImages}
-                    disabled={downloadingAll || getTotalImageCount() === 0}
+                    disabled={downloadingAll || totalResultCount === 0}
                     className="rounded-full border border-gray-700 px-4 py-2 text-gray-200 transition-colors hover:border-white disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-500"
                   >
                     {downloadingAll ? "下载中..." : "下载"}
@@ -610,7 +604,7 @@ export default function NBCoverPage() {
                           name="model"
                           value={model.value}
                           checked={selectedModel === model.value}
-                          onChange={(e) => setSelectedModel(e.target.value)}
+                          onChange={(e) => setSelectedModel(e.target.value as Model)}
                           className="h-4 w-4 accent-white"
                         />
                       </span>
@@ -642,7 +636,7 @@ export default function NBCoverPage() {
                 <div className="text-xs uppercase tracking-[0.4em] text-gray-500">统计</div>
                 <div className="mt-3 space-y-2 text-sm text-gray-400">
                   <p>任务数：{tasks.length}</p>
-                  <p>图片总数：{getTotalImageCount()}</p>
+                  <p>图片总数：{totalResultCount}</p>
                   <p>当前模型：{selectedModel}</p>
                   {currentCategory.needsLogoUpload ? (
                     <p>Logo 状态：{logoImageUrl ? "✅ 就绪" : uploadingLogo ? "⏳ 上传中" : "⚠️ 待上传"}</p>
@@ -689,7 +683,7 @@ export default function NBCoverPage() {
                 <div>
                   <div className="text-xs uppercase tracking-[0.4em] text-gray-500">历史</div>
                   <h3 className="text-lg font-semibold text-white">任务记录</h3>
-                  <p className="text-xs text-gray-500">共 {tasks.length} 条 · {getTotalImageCount()} 张图片</p>
+                  <p className="text-xs text-gray-500">共 {tasks.length} 条 · {totalResultCount} 张图片</p>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <button
@@ -699,10 +693,7 @@ export default function NBCoverPage() {
                     {showHistory ? "收起" : "展开"}
                   </button>
                   <button
-                    onClick={() => {
-                      setTasks([]);
-                      setTaskResults({});
-                    }}
+                    onClick={clear}
                     className="rounded-full border border-gray-800 px-3 py-1 text-gray-400 transition-colors hover:border-white hover:text-white"
                   >
                     清空
@@ -721,27 +712,22 @@ export default function NBCoverPage() {
               ) : (
                 <div className="mt-6 flex flex-col gap-4">
                   {tasks.map((task) => (
-                    <div key={task.id} className="rounded-2xl border border-gray-900 bg-black/40 p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="text-[11px] text-gray-500">{new Date(task.createdAt).toLocaleString("zh-CN")}</div>
-                          <div className="text-xs text-blue-400">
-                            [{CATEGORIES[task.category as CategoryKey]?.name || task.category}]
-                          </div>
-                          <div className="text-sm text-gray-200">{task.inputText}</div>
-                          <div className="text-[11px] text-gray-600">ID: {task.id}</div>
-                        </div>
-                        <button
-                          onClick={() => removeTask(task.id)}
-                          className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300 transition-colors hover:border-red-500 hover:text-red-400"
-                        >
-                          移除
-                        </button>
-                      </div>
+                    <TaskCard
+                      key={task.id}
+                      id={task.id}
+                      createdAt={task.createdAt}
+                      title={task.prompt}
+                      subtitle={CATEGORIES[task.meta?.category as CategoryKey]?.name || task.meta?.category}
+                      onRemove={() => removeTask(task.id)}
+                    >
                       <div className="mt-3 rounded-xl border border-gray-900 bg-black/60 p-3">
-                        <AutoTaskQuery apiKey={apiKey} taskId={task.id} onResultsUpdate={(urls) => updateTaskResults(task.id, urls)} />
+                        <AutoTaskQuery
+                          apiKey={effectiveApiKey}
+                          taskId={task.id}
+                          onResultsUpdate={(urls) => updateResults(task.id, urls)}
+                        />
                       </div>
-                    </div>
+                    </TaskCard>
                   ))}
                 </div>
               )}
