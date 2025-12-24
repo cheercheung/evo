@@ -53,14 +53,9 @@ const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
       { key: "text1", label: "主标题 (黄色大字)", placeholder: '例如: "NEW PRODUCT"' },
       { key: "text2", label: "副标题 (白色小字)", placeholder: '例如: "Coming Soon"' }
     ],
-    promptTemplate: `Create a thumbnail showing a surprised woman standing in a softly lit, dramatic environment with shimmering light in the background.
-
+    promptTemplate: `Create a thumbnail showing a surprised woman(reference girl photo) standing in in a cozy Christmas atmosphere with decorated Christmas trees, warm glowing lights, red and gold ornaments, soft snowfall, and a festive holiday glow.
 She holds a bright logo(reference logo photo) in both hands, seemingly captivated by it.
-
-The image uses cool-toned, cinematic lighting.
-
-The girl's mouth is agape, her face filled with amazement.
-
+The image uses cool-toned, cinematic lighting.The girl's mouth is agape, her face filled with amazement.
 On the right side of the image, prominent yellow text reads "{text1}" with a smaller white line above it reading "{text2}" A white dotted arrow points to the glowing logo.`,
     sampleImagePath: "/sample_photo/logo-product-sanmple.png",
   },
