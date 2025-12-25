@@ -106,12 +106,12 @@ export default function VideoToolPage() {
 
   if (!isAuthenticated) {
     return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center p-8">
-        <div className="w-full max-w-sm">
+      <main className="min-h-screen bg-[#f7f7f7] text-black flex items-center justify-center p-8">
+        <div className="w-full max-w-sm rounded-2xl border border-black/10 bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
           <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-6">
             <div className="flex flex-col gap-2 text-center">
               <h1 className="text-2xl font-bold">🎬 视频生成</h1>
-              <p className="text-sm text-gray-500">输入密码后开始使用</p>
+              <p className="text-sm text-black/60">输入密码后开始使用</p>
             </div>
             <div className="flex flex-col gap-2">
               <input
@@ -122,7 +122,7 @@ export default function VideoToolPage() {
                   setPasswordError(false);
                 }}
                 placeholder="请输入密码"
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 text-white placeholder-gray-500 focus:border-white focus:outline-none"
+                className="w-full rounded-lg border border-black/20 bg-white px-4 py-3 text-black placeholder-black/40 focus:border-black focus:outline-none"
                 autoFocus
               />
               {passwordError && (
@@ -131,7 +131,7 @@ export default function VideoToolPage() {
             </div>
             <button
               type="submit"
-              className="w-full py-3 bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors"
+              className="w-full rounded-lg bg-black py-3 text-white font-medium shadow-[0_12px_28px_rgba(0,0,0,0.12)] transition-colors hover:bg-black/80"
             >
               确认
             </button>
@@ -142,34 +142,34 @@ export default function VideoToolPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white p-8">
+    <main className="min-h-screen bg-[#f7f7f7] text-black p-8">
       <div className="max-w-6xl mx-auto flex flex-col gap-8">
         {/* Header */}
-        <div className="flex flex-col gap-2 border-b border-gray-800 pb-6">
+        <div className="flex flex-col gap-2 rounded-3xl border border-black/10 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.06)]">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">🎬 视频生成</h1>
             <div className="flex gap-2">
               <Link
                 href="/image-tool"
-                className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors"
+                className="text-sm px-4 py-2 rounded-full border border-black/10 bg-white text-black shadow-[0_8px_20px_rgba(0,0,0,0.05)] transition-colors hover:border-black"
               >
                 Nano Banana
               </Link>
               <Link
                 href="/nb-cover"
-                className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors"
+                className="text-sm px-4 py-2 rounded-full border border-black/10 bg-white text-black shadow-[0_8px_20px_rgba(0,0,0,0.05)] transition-colors hover:border-black"
               >
                 NB 封面
               </Link>
               <Link
                 href="/z-image"
-                className="text-sm px-4 py-2 border border-gray-700 hover:border-white transition-colors"
+                className="text-sm px-4 py-2 rounded-full border border-black/10 bg-white text-black shadow-[0_8px_20px_rgba(0,0,0,0.05)] transition-colors hover:border-black"
               >
                 Z-Image
               </Link>
             </div>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-black/60">
             使用 WAN2.6 模型生成高质量 AI 视频 · 支持多任务并行
           </p>
         </div>
@@ -184,12 +184,12 @@ export default function VideoToolPage() {
 
         {/* All Tasks */}
         {tasks.length > 0 && (
-          <div className="flex flex-col gap-6 border-t border-gray-800 pt-8">
+          <div className="flex flex-col gap-6 rounded-3xl border border-black/10 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.06)]">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">任务列表 ({tasks.length})</h2>
               <button
                 onClick={clear}
-                className="text-xs px-3 py-1 border border-gray-700 hover:border-white transition-colors"
+                className="text-xs px-3 py-1 rounded-full border border-black/20 hover:border-black transition-colors"
               >
                 清空全部
               </button>
