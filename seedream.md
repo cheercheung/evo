@@ -1,74 +1,66 @@
-# Kling-O1 Image to Video
+# Seedream 4.5 Image Generation
 
-> - Kling-O1 Image to Video (kling-o1-image-to-video) model supports image-to-video generation
-- Asynchronous processing mode, use the returned task ID to [query status](/en/api-manual/task-management/get-task-detail)
-- Generated video links are valid for 24 hours, please save them promptly
+> - Seedream 4.5 (doubao-seedream-4.5) model supports text-to-image, image-to-image, image editing and other generation modes
+- Asynchronous processing mode, use the returned task ID to [query](/en/api-manual/task-management/get-task-detail)
+- Generated image links are valid for 24 hours, please save them promptly
 
 
 
 ## OpenAPI
 
-````yaml en/api-manual/video-series/kling/kling-o1-image-to-video.json post /v1/videos/generations
+````yaml en/api-manual/image-series/seedream/seedream-4.5-image-generate.json post /v1/images/generations
 openapi: 3.1.0
 info:
-  title: kling-o1-image-to-video API
-  description: Create image-to-video tasks using AI models
+  title: doubao-seedream-4.5 Interface
+  description: >-
+    Create image tasks using AI models, supporting multiple models and parameter
+    configurations
   license:
     name: MIT
   version: 1.0.0
 servers:
   - url: https://api.evolink.ai
-    description: Production
+    description: Production environment
 security:
   - bearerAuth: []
 tags:
-  - name: Video Generation
-    description: AI video generation APIs
+  - name: Image Generation
+    description: AI image generation related APIs
 paths:
-  /v1/videos/generations:
+  /v1/images/generations:
     post:
       tags:
-        - Video Generation
-      summary: kling-o1-image-to-video API
+        - Image Generation
+      summary: doubao-seedream-4.5 Interface
       description: >-
-        - Kling-O1 Image to Video (kling-o1-image-to-video) model supports
-        image-to-video generation
+        - Seedream 4.5 (doubao-seedream-4.5) model supports text-to-image,
+        image-to-image, image editing and other generation modes
 
-        - Asynchronous processing mode, use the returned task ID to [query
-        status](/en/api-manual/task-management/get-task-detail)
+        - Asynchronous processing mode, use the returned task ID to
+        [query](/en/api-manual/task-management/get-task-detail)
 
-        - Generated video links are valid for 24 hours, please save them
+        - Generated image links are valid for 24 hours, please save them
         promptly
-      operationId: createVideoGeneration
+      operationId: createImageGeneration
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VideoGenerationRequest'
+              $ref: '#/components/schemas/ImageGenerationRequest'
             examples:
-              first_frame:
-                summary: First Frame Image to Video
+              text_to_image:
+                summary: Text to Image
                 value:
-                  model: kling-o1-image-to-video
-                  prompt: A cat walking gracefully
-                  image_urls:
-                    - https://example.com/first-frame.jpg
-              first_last_frame:
-                summary: First and Last Frame Image to Video
-                value:
-                  model: kling-o1-image-to-video
-                  prompt: A cat walking gracefully
-                  image_urls:
-                    - https://example.com/first-frame.jpg
-                    - https://example.com/last-frame.jpg
+                  model: doubao-seedream-4.5
+                  prompt: A serene lake reflecting the beautiful sunset
       responses:
         '200':
-          description: Video generation task created successfully
+          description: Image generation task created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VideoGenerationResponse'
+                $ref: '#/components/schemas/ImageGenerationResponse'
         '400':
           description: Invalid request parameters
           content:
@@ -78,7 +70,7 @@ paths:
               example:
                 error:
                   code: 400
-                  message: Invalid request parameter
+                  message: Invalid request parameters
                   type: invalid_request_error
         '401':
           description: Unauthenticated, invalid or expired token
@@ -127,7 +119,20 @@ paths:
                   message: Specified model not found
                   type: not_found_error
                   param: model
-                  fallback_suggestion: kling-o1-image-to-video
+                  fallback_suggestion: doubao-seedream-4.5
+        '413':
+          description: Request body too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: 413
+                  message: Image file too large
+                  type: request_too_large_error
+                  param: image_urls
+                  fallback_suggestion: compress image to under 4MB
         '429':
           description: Rate limit exceeded
           content:
@@ -178,100 +183,140 @@ paths:
                   fallback_suggestion: retry after 30 seconds
 components:
   schemas:
-    VideoGenerationRequest:
+    ImageGenerationRequest:
       type: object
       required:
         - model
         - prompt
-        - image_urls
       properties:
         model:
           type: string
-          description: Video generation model name
-          default: kling-o1-image-to-video
-          example: kling-o1-image-to-video
+          description: Image generation model name
+          enum:
+            - doubao-seedream-4.5
+          default: doubao-seedream-4.5
+          example: doubao-seedream-4.5
         prompt:
           type: string
-          description: Prompt describing what video to generate
-          example: A cat walking gracefully
-          maxLength: 5000
+          description: >-
+            Prompt describing the image you want to generate, or describing how
+            to edit the input image, limited to 2000 tokens
+          example: A serene lake reflecting the beautiful sunset
+          maxLength: 2000
+        'n':
+          type: integer
+          description: >-
+            Maximum number of images to generate, supports any integer value
+            between `[1,15]`
+
+
+            **Note:**
+
+            - To generate multiple images, include prompts like: "generate 2
+            different images" in your prompt
+
+
+            - Reference image count + final generated image count ≤ 15 images
+
+
+            - If: reference image count + images requested in prompt > 15, and
+            images requested in prompt ≤ parameter n value, then final generated
+            images = 15 - reference image count
+
+            - Each request will pre-charge based on the value of `n`, actual
+            charges based on the number of images generated
+          example: 1
+        size:
+          type: string
+          description: >-
+            Size of generated image, supports two formats:
+
+
+            **Method 1 - Simplified format:**
+
+            - `2K`, `4K`
+
+            - Describe aspect ratio/shape/purpose in prompt, model will
+            automatically determine optimal size
+
+
+            **Method 2 - Pixel format:**
+
+            - Width x Height, e.g.: `2560x1440`, `2048x2048`, `4096x4096` and
+            other values within range
+
+            - Default: `2048x2048`
+
+            - Total pixel range: `[2560x1440, 4096x4096]`
+
+            - Aspect ratio range: `[1/16, 16]`
+          example: 2048x2048
+        prompt_priority:
+          type: string
+          description: >-
+            Prompt optimization strategy, used to set the mode for prompt
+            optimization
+
+
+            **Options:**
+
+            - `standard`: Standard mode, higher quality output, longer
+            processing time
+          enum:
+            - standard
+          default: standard
+          example: standard
         image_urls:
           type: array
           description: >-
-            Reference image URL list for image-to-video generation
+            Reference image URL list for image-to-image and image editing
+            features
 
 
             **Note:**
 
-            - Supports `1` to `2` images per request (`1` image for first-frame
-            video generation, `2` images for first-and-last-frame video
-            generation)
+            - Single request supports input image quantity: `14` images
 
-            - Image size: up to `10MB`
+            - Image size: no more than `10MB`
 
-            - Supported formats: `.jpg`, `.jpeg`, `.png`, `.webp`
+            - Supported image formats: `.jpeg`, `.jpg`, `.png`, `.webp`, `.bmp`,
+            `.tiff`, `.gif`
 
-            - Image URL must be directly accessible by the server, or the URL
-            should trigger a direct download when accessed (typically URLs
-            ending with image extensions like `.png`, `.jpg`)
+            - Aspect ratio (width/height) range: `[1/16, 16]`
+
+            - Width and height (px) > 14
+
+            - Total pixels: no more than `6000×6000`
+
+            - Image URLs must be directly viewable by the server, or the image
+            URL should trigger direct download when accessed (typically these
+            URLs end with image file extensions, such as `.png`, `.jpg`)
           items:
             type: string
             format: uri
-          minItems: 1
-          maxItems: 2
+          maxItems: 14
           example:
-            - https://example.com/image1.jpg
-        aspect_ratio:
-          type: string
-          description: |-
-            Video aspect ratio
-
-            **Options:**
-            - `16:9`: Landscape video
-            - `9:16`: Portrait video
-            - `1:1`: Square video
-          enum:
-            - '16:9'
-            - '9:16'
-            - '1:1'
-          example: '16:9'
-        duration:
-          type: integer
-          description: >-
-            Video duration in seconds, defaults to `5` seconds
-
-
-            **Note:**
-
-            - Only supports `5` or `10` values, representing `5 seconds` or `10
-            seconds`
-
-            - Billing is based on the `duration` value, longer duration costs
-            more
-          enum:
-            - 5
-            - 10
-          default: 5
-          example: 5
+            - https://example.com/image1.png
+            - https://example.com/image2.png
         callback_url:
           type: string
           description: >-
-            HTTPS callback URL for task completion
+            HTTPS callback address after task completion
 
 
             **Callback Timing:**
 
             - Triggered when task is completed, failed, or cancelled
 
-            - Sent after billing confirmation
+            - Sent after billing confirmation is completed
 
 
             **Security Restrictions:**
 
-            - HTTPS protocol only
+            - Only HTTPS protocol is supported
 
-            - Internal IP addresses are prohibited (127.0.0.1, 10.x.x.x,
-            172.16-31.x.x, 192.168.x.x, etc.)
+            - Callback to internal IP addresses is prohibited (127.0.0.1,
+            10.x.x.x, 172.16-31.x.x, 192.168.x.x, etc.)
 
             - URL length must not exceed `2048` characters
 
@@ -280,35 +325,36 @@ components:
 
             - Timeout: `10` seconds
 
-            - Maximum `3` retries after failure (at `1`/`2`/`4` seconds after
-            failure)
+            - Maximum `3` retries on failure (retries after `1` second/`2`
+            seconds/`4` seconds)
 
-            - Callback response format is consistent with task query API
+            - Callback response body format is consistent with the task query
+            API response format
 
-            - 2xx status code is considered successful, other codes trigger
-            retry
+            - Callback address returning 2xx status code is considered
+            successful, other status codes will trigger retry
           format: uri
-          example: https://your-domain.com/webhooks/video-task-completed
-    VideoGenerationResponse:
+          example: https://your-domain.com/webhooks/image-task-completed
+    ImageGenerationResponse:
       type: object
       properties:
         created:
           type: integer
           description: Task creation timestamp
-          example: 1757169743
+          example: 1757165031
         id:
           type: string
           description: Task ID
-          example: task-unified-1757169743-7cvnl5zw
+          example: task-unified-1757165031-seedream4d
         model:
           type: string
           description: Actual model name used
-          example: kling-o1-image-to-video
+          example: doubao-seedream-4.5
         object:
           type: string
           enum:
-            - video.generation.task
-          description: Task type
+            - image.generation.task
+          description: Specific task type
         progress:
           type: integer
           description: Task progress percentage (0-100)
@@ -325,8 +371,8 @@ components:
             - failed
           example: pending
         task_info:
-          $ref: '#/components/schemas/VideoTaskInfo'
-          description: Video task details
+          $ref: '#/components/schemas/TaskInfo'
+          description: Async task information
         type:
           type: string
           enum:
@@ -335,9 +381,9 @@ components:
             - audio
             - video
           description: Task output type
-          example: video
+          example: image
         usage:
-          $ref: '#/components/schemas/VideoUsage'
+          $ref: '#/components/schemas/Usage'
           description: Usage and billing information
     ErrorResponse:
       type: object
@@ -351,20 +397,16 @@ components:
             message:
               type: string
               description: Error description
-              example: Invalid request parameter
             type:
               type: string
               description: Error type
-              example: invalid_request_error
             param:
               type: string
               description: Related parameter name
-              example: model
             fallback_suggestion:
               type: string
-              description: Suggestion for error resolution
-              example: kling-o1-image-to-video
-    VideoTaskInfo:
+              description: Suggested solution
+    TaskInfo:
       type: object
       properties:
         can_cancel:
@@ -375,12 +417,8 @@ components:
           type: integer
           description: Estimated completion time (seconds)
           minimum: 0
-          example: 300
-        video_duration:
-          type: integer
-          description: Video duration (seconds)
-          example: 9
-    VideoUsage:
+          example: 45
+    Usage:
       type: object
       description: Usage and billing information
       properties:
@@ -396,7 +434,7 @@ components:
           type: number
           description: Estimated credits consumed
           minimum: 0
-          example: 7
+          example: 1.8
         user_group:
           type: string
           description: User group category
@@ -406,7 +444,7 @@ components:
       type: http
       scheme: bearer
       description: >-
-        ## All APIs require Bearer Token authentication ##
+        ##All APIs require Bearer Token authentication##
 
 
         **Get API Key:**
@@ -416,7 +454,7 @@ components:
         get your API Key
 
 
-        **Add to request header:**
+        **Add to request header when using:**
 
         ```
 

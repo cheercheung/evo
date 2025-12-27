@@ -43,11 +43,13 @@ export default function SimpleImageToolPage() {
       }
 
       // 创建生成任务
+      // Seedream 模型不支持 quality 参数，只使用 size
+      const isSeedream = data.model === "doubao-seedream-4.5";
       const response = await client.createImageGeneration({
         model: data.model,
         prompt: data.prompt,
         size: data.size,
-        quality: data.quality,
+        quality: isSeedream ? undefined : data.quality,
         image_urls: imageUrls.length > 0 ? imageUrls : undefined,
       });
 

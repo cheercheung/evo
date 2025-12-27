@@ -57,11 +57,13 @@ export default function ImageToolPage() {
       }
 
       // 创建生成任务
+      // Seedream 模型不支持 quality 参数，只使用 size
+      const isSeedream = data.model === "doubao-seedream-4.5";
       const response = await client.createImageGeneration({
         model: data.model,
         prompt: data.prompt,
         size: data.size,
-        quality: data.quality,
+        quality: isSeedream ? undefined : data.quality,
         image_urls: imageUrls.length > 0 ? imageUrls : undefined,
       });
 
@@ -185,7 +187,7 @@ export default function ImageToolPage() {
             </div>
           </div>
           <p className="text-sm text-black/60">
-            使用 AI 生成高质量图片 · 支持多任务并行
+            使用 Nano Banana / Gemini / Seedream 模型生成高质量图片 · 支持多任务并行
           </p>
         </div>
 

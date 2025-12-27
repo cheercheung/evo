@@ -1,9 +1,25 @@
 // Evolink API Types based on doc.md and query.md
 
-export const MODELS = ["nano-banana-2-lite", "gemini-3-pro-image-preview"] as const;
+export const MODELS = ["nano-banana-2-lite", "gemini-3-pro-image-preview", "doubao-seedream-4.5"] as const;
 export const SIZES = ["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] as const;
 export const QUALITIES = ["1K", "2K", "4K"] as const;
 export const TASK_STATUSES = ["pending", "processing", "completed", "failed"] as const;
+
+// Seedream 4.5 specific sizes (pixel format)
+export const SEEDREAM_SIZES = [
+  "2K",           // Simplified format
+  "4K",           // Simplified format
+  "2048x2048",    // 1:1 Square
+  "2560x1440",    // 16:9 Landscape
+  "1440x2560",    // 9:16 Portrait
+  "2048x3072",    // 2:3 Portrait
+  "3072x2048",    // 3:2 Landscape
+  "2048x2730",    // 3:4 Portrait
+  "2730x2048",    // 4:3 Landscape
+  "4096x4096",    // 1:1 Square (4K)
+  "4096x2304",    // 16:9 Landscape (4K)
+  "2304x4096",    // 9:16 Portrait (4K)
+] as const;
 
 // Z-Image specific constants
 export const Z_IMAGE_MODELS = ["z-image-turbo"] as const;
@@ -22,6 +38,7 @@ export type Quality = typeof QUALITIES[number];
 export type TaskStatus = typeof TASK_STATUSES[number];
 export type ZImageModel = typeof Z_IMAGE_MODELS[number];
 export type ZImageSize = typeof Z_IMAGE_SIZES[number];
+export type SeedreamSize = typeof SEEDREAM_SIZES[number];
 
 // WAN2.6 Video Types
 export type VideoModel = typeof VIDEO_MODELS[number];
