@@ -56,7 +56,8 @@ export default function VideoToolPage() {
     setGenLoading(true);
 
     try {
-      const isImageToVideo = data.model === "wan2.6-image-to-video";
+      const isImageToVideo = data.model === "wan2.6-image-to-video" || data.model === "kling-o1-image-to-video";
+      const isKling = data.model === "kling-o1-image-to-video";
 
       // 如果是图生视频模式，先上传图片
       let imageUrls: string[] | undefined;
@@ -71,13 +72,13 @@ export default function VideoToolPage() {
       const response = await client.createVideoGeneration({
         model: data.model,
         prompt: data.prompt,
-        aspect_ratio: isImageToVideo ? undefined : data.aspect_ratio, // 图生视频不需要宽高比
-        quality: data.quality,
+        aspect_ratio: isImageToVideo ? (isKling ? data.aspect_ratio : undefined) : data.aspect_ratio, // Kling 支持宽高比，WAN2.6 图生视频不支持
+        quality: isKling ? undefined : data.quality, // Kling 不支持 quality 参数
         duration: data.duration,
-        prompt_extend: data.prompt_extend,
-        model_params: {
+        prompt_extend: isKling ? undefined : data.prompt_extend, // Kling 不支持 prompt_extend
+        model_params: isKling ? undefined : {
           shot_type: data.shot_type,
-        },
+        }, // Kling 不支持 model_params
         image_urls: imageUrls,
         callback_url: data.callbackUrl || undefined,
       });
@@ -170,7 +171,7 @@ export default function VideoToolPage() {
             </div>
           </div>
           <p className="text-sm text-black/60">
-            使用 WAN2.6 模型生成高质量 AI 视频 · 支持多任务并行
+            使用 WAN2.6 / Kling-O1 模型生成高质量 AI 视频 · 支持多任务并行
           </p>
         </div>
 

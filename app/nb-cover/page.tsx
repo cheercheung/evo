@@ -82,6 +82,8 @@ export default function NBCoverPage() {
 
   // 图片上传状态
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
+  const [referencePreviewSrc, setReferencePreviewSrc] = useState<string | null>(null);
+  const [referenceUploading, setReferenceUploading] = useState(false);
   const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -130,6 +132,7 @@ export default function NBCoverPage() {
     setLogoImageUrl(null);
     setLogoPreviewUrl(null);
     setReferenceImageUrl(null);
+    setReferencePreviewSrc(currentCategory.defaultImagePath);
     setGenError(null);
   }, [selectedCategory]);
 
@@ -152,6 +155,7 @@ export default function NBCoverPage() {
         const file = new File([blob], currentCategory.defaultImageName, { type: "image/jpeg" });
         const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover", authToken: uploadToken });
         setReferenceImageUrl(uploadResponse.data.file_url);
+        setReferencePreviewSrc(currentCategory.defaultImagePath);
         console.log("参考图片上传成功:", uploadResponse.data.file_url);
       } catch (err) {
         console.error("参考图片上传失败:", err);
@@ -192,6 +196,35 @@ export default function NBCoverPage() {
       setLogoPreviewUrl(null);
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  const handleReferenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setGenError("参考图仅支持 JPEG/PNG/GIF/WebP");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setReferencePreviewSrc(previewUrl);
+    setReferenceUploading(true);
+    setGenError(null);
+
+    try {
+      const uploadToken = effectiveUploadToken;
+      const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover", authToken: uploadToken });
+      setReferenceImageUrl(uploadResponse.data.file_url);
+      console.log("参考图上传成功:", uploadResponse.data.file_url);
+    } catch (err: any) {
+      console.error("参考图上传失败:", err);
+      setGenError("参考图上传失败: " + (err.message || "未知错误"));
+      setReferencePreviewSrc(currentCategory.defaultImagePath);
+    } finally {
+      setReferenceUploading(false);
     }
   };
 
@@ -468,6 +501,45 @@ export default function NBCoverPage() {
                       <span className="text-xs text-black/60">{referenceImageUrl ? "✅ 已上传" : "⏳ 上传中"}</span>
                     </div>
                     <p className="mt-2 text-xs text-black/60">系统自动上传，生成时会作为基础参考图。</p>
+                  </div>
+                  <div className="rounded-[16px] border border-black/10 bg-black/[0.03] p-4">
+                    <div className="flex items-center justify-between text-sm text-black">
+                      <span>参考图上传/替换</span>
+                      {referenceUploading && <span className="text-[11px] text-black/60">上传中...</span>}
+                    </div>
+                    <div className="mt-3 flex items-center gap-4">
+                      <div className="relative h-24 w-16 overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
+                        <img
+                          src={referencePreviewSrc || currentCategory.defaultImagePath}
+                          alt="参考图预览"
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/40 to-transparent" />
+                        <div className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[10px] text-white">参考</div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/gif,image/webp"
+                          onChange={handleReferenceUpload}
+                          disabled={referenceUploading}
+                          className="hidden"
+                          id="reference-upload-input"
+                        />
+                        <label
+                          htmlFor="reference-upload-input"
+                          className={`w-max rounded-full px-4 py-2 text-xs transition-colors ${
+                            referenceUploading
+                              ? "cursor-not-allowed border border-black/20 text-black/40"
+                              : "border border-black text-black hover:bg-black hover:text-white"
+                          }`}
+                        >
+                          {referenceUploading ? "上传中..." : "📁 上传/替换参考图"}
+                        </label>
+                        <span className="text-[10px] text-black/60">支持 JPEG/PNG/GIF/WebP</span>
+                        {referenceImageUrl && <span className="text-xs text-black">✅ 已上传自定义参考图</span>}
+                      </div>
+                    </div>
                   </div>
 
                   {currentCategory.needsLogoUpload ? (

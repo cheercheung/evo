@@ -9,8 +9,8 @@ export const TASK_STATUSES = ["pending", "processing", "completed", "failed"] as
 export const Z_IMAGE_MODELS = ["z-image-turbo"] as const;
 export const Z_IMAGE_SIZES = ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "1:2", "2:1"] as const;
 
-// WAN2.6 Video Generation constants
-export const VIDEO_MODELS = ["wan2.6-text-to-video", "wan2.6-image-to-video"] as const;
+// Video Generation constants
+export const VIDEO_MODELS = ["wan2.6-text-to-video", "wan2.6-image-to-video", "kling-o1-image-to-video"] as const;
 export const VIDEO_ASPECT_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"] as const;
 export const VIDEO_QUALITIES = ["720p", "1080p"] as const;
 export const VIDEO_DURATIONS = [5, 10, 15] as const;

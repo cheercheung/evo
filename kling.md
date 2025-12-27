@@ -1,34 +1,37 @@
-# Wan2.6 Image to Video
+# Kling-O1 Image to Video
 
-> - WAN2.6 (wan2.6-image-to-video) model supports first-frame image-to-video generation
+> - Kling-O1 Image to Video (kling-o1-image-to-video) model supports image-to-video generation
 - Asynchronous processing mode, use the returned task ID to [query status](/en/api-manual/task-management/get-task-detail)
 - Generated video links are valid for 24 hours, please save them promptly
 
+
+
 ## OpenAPI
 
-````yaml en/api-manual/video-series/wan2.6/wan2.6-image-to-video.json post /v1/videos/generations
+````yaml en/api-manual/video-series/kling/kling-o1-image-to-video.json post /v1/videos/generations
 openapi: 3.1.0
 info:
-  title: wan2.6-image-to-video API
-  description: >-
-    Generate videos from images using the WAN2.6 model with simplified model
-    parameter configuration
+  title: kling-o1-image-to-video API
+  description: Create image-to-video tasks using AI models
   license:
     name: MIT
   version: 1.0.0
 servers:
   - url: https://api.evolink.ai
-    description: Production Environment
+    description: Production
 security:
   - bearerAuth: []
+tags:
+  - name: Video Generation
+    description: AI video generation APIs
 paths:
   /v1/videos/generations:
     post:
       tags:
         - Video Generation
-      summary: wan2.6-image-to-video API
+      summary: kling-o1-image-to-video API
       description: >-
-        - WAN2.6 (wan2.6-image-to-video) model supports first-frame
+        - Kling-O1 Image to Video (kling-o1-image-to-video) model supports
         image-to-video generation
 
         - Asynchronous processing mode, use the returned task ID to [query
@@ -36,22 +39,32 @@ paths:
 
         - Generated video links are valid for 24 hours, please save them
         promptly
-      operationId: createWan26ImageToVideoGeneration
+      operationId: createVideoGeneration
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Wan26ImageToVideoRequest'
+              $ref: '#/components/schemas/VideoGenerationRequest'
             examples:
-              image_to_video:
-                summary: Image to Video
+              first_frame:
+                summary: First Frame Image to Video
                 value:
-                  model: wan2.6-image-to-video
-                  prompt: A cat playing piano
+                  model: kling-o1-image-to-video
+                  prompt: A cat walking gracefully
+                  image_urls:
+                    - https://example.com/first-frame.jpg
+              first_last_frame:
+                summary: First and Last Frame Image to Video
+                value:
+                  model: kling-o1-image-to-video
+                  prompt: A cat walking gracefully
+                  image_urls:
+                    - https://example.com/first-frame.jpg
+                    - https://example.com/last-frame.jpg
       responses:
         '200':
-          description: Video task created successfully
+          description: Video generation task created successfully
           content:
             application/json:
               schema:
@@ -65,11 +78,10 @@ paths:
               example:
                 error:
                   code: 400
-                  message: Invalid request format
+                  message: Invalid request parameter
                   type: invalid_request_error
-                  param: model
         '401':
-          description: Authentication failed
+          description: Unauthenticated, invalid or expired token
           content:
             application/json:
               schema:
@@ -77,8 +89,20 @@ paths:
               example:
                 error:
                   code: 401
-                  message: Invalid authentication credentials
+                  message: Invalid or expired token
                   type: authentication_error
+        '402':
+          description: Insufficient quota, recharge required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: 402
+                  message: Insufficient quota
+                  type: insufficient_quota_error
+                  fallback_suggestion: https://evolink.ai/dashboard/billing
         '403':
           description: Access denied
           content:
@@ -103,7 +127,7 @@ paths:
                   message: Specified model not found
                   type: not_found_error
                   param: model
-                  fallback_suggestion: wan2.6-image-to-video
+                  fallback_suggestion: kling-o1-image-to-video
         '429':
           description: Rate limit exceeded
           content:
@@ -137,9 +161,9 @@ paths:
               example:
                 error:
                   code: 502
-                  message: Bad gateway
+                  message: Upstream AI service unavailable
                   type: upstream_error
-                  fallback_suggestion: try again later
+                  fallback_suggestion: try different model
         '503':
           description: Service temporarily unavailable
           content:
@@ -154,7 +178,7 @@ paths:
                   fallback_suggestion: retry after 30 seconds
 components:
   schemas:
-    Wan26ImageToVideoRequest:
+    VideoGenerationRequest:
       type: object
       required:
         - model
@@ -163,117 +187,72 @@ components:
       properties:
         model:
           type: string
-          description: Model name
-          enum:
-            - wan2.6-image-to-video
-          default: wan2.6-image-to-video
-          example: wan2.6-image-to-video
+          description: Video generation model name
+          default: kling-o1-image-to-video
+          example: kling-o1-image-to-video
         prompt:
           type: string
-          description: >-
-            Prompt describing the video you want to generate, limited to 1500
-            characters
-          example: A cat playing piano
-          maxLength: 1500
-        duration:
-          type: integer
-          description: >-
-            Specifies the duration of the generated video (in seconds)
-
-
-            **Note:**
-
-            - Only supports `5`, `10`, `15` values, representing `5 seconds`,
-            `10 seconds`, `15 seconds`
-
-            - Each request will be pre-charged based on the `duration` value,
-            actual charge is based on the generated video duration
-          example: 5
-        quality:
-          type: string
-          description: |-
-            Video quality, defaults to `720p`
-
-            **Options:**
-            - `720p`: Standard definition, standard price, this is the default
-            - `1080p`: High definition, higher price
-          example: 720p
+          description: Prompt describing what video to generate
+          example: A cat walking gracefully
+          maxLength: 5000
         image_urls:
           type: array
           description: >-
-            Reference image URL list for first-frame image-to-video generation
+            Reference image URL list for image-to-video generation
 
 
             **Note:**
 
-            - Single request supports `1` image
+            - Supports `1` to `2` images per request (`1` image for first-frame
+            video generation, `2` images for first-and-last-frame video
+            generation)
 
-            - Image size: no more than `10MB`
+            - Image size: up to `10MB`
 
-            - Supported formats: `.jpeg`, `.jpg`, `.png` (transparent channel
-            not supported), `.bmp`, `.webp`
-
-            - Image resolution: width and height range is `[360, 2000]` pixels
+            - Supported formats: `.jpg`, `.jpeg`, `.png`, `.webp`
 
             - Image URL must be directly accessible by the server, or the URL
-            should directly download the image (typically URLs ending with image
-            extensions like `.png`, `.jpg`)
+            should trigger a direct download when accessed (typically URLs
+            ending with image extensions like `.png`, `.jpg`)
           items:
             type: string
             format: uri
-          maxItems: 1
+          minItems: 1
+          maxItems: 2
           example:
-            - https://example.com/image1.png
-        prompt_extend:
-          type: boolean
+            - https://example.com/image1.jpg
+        aspect_ratio:
+          type: string
+          description: |-
+            Video aspect ratio
+
+            **Options:**
+            - `16:9`: Landscape video
+            - `9:16`: Portrait video
+            - `1:1`: Square video
+          enum:
+            - '16:9'
+            - '9:16'
+            - '1:1'
+          example: '16:9'
+        duration:
+          type: integer
           description: >-
-            Whether to enable intelligent prompt rewriting. When enabled, a
-            large model will optimize the prompt, which significantly improves
-            results for simple or insufficiently descriptive prompts. Default is
-            `true`
-          example: true
-        model_params:
-          type: object
-          description: Model parameter configuration
-          properties:
-            shot_type:
-              type: string
-              description: >-
-                Specifies the shot type for the generated video, i.e., whether
-                the video consists of a single continuous shot or multiple
-                switching shots
+            Video duration in seconds, defaults to `5` seconds
 
 
-                **Effective Condition:**
+            **Note:**
 
-                - Only effective when `prompt_extend` is `true`
+            - Only supports `5` or `10` values, representing `5 seconds` or `10
+            seconds`
 
-
-                **Parameter Priority:**
-
-                - `shot_type` > `prompt`
-
-                - For example, if `shot_type` is set to `single`, even if the
-                `prompt` contains `generate multi-shot video`, the model will
-                still output a single-shot video
-
-
-                **Options:**
-
-                - `single`: Default, outputs single-shot video
-
-                - `multi`: Outputs multi-shot video
-
-
-                **Note:**
-
-                - Use this parameter when you want to strictly control the
-                narrative structure of the video (e.g., single shot for product
-                showcases, multi-shot for short stories)
-              enum:
-                - single
-                - multi
-              example: single
+            - Billing is based on the `duration` value, longer duration costs
+            more
+          enum:
+            - 5
+            - 10
+          default: 5
+          example: 5
         callback_url:
           type: string
           description: >-
@@ -289,10 +268,10 @@ components:
 
             **Security Restrictions:**
 
-            - Only HTTPS protocol is supported
+            - HTTPS protocol only
 
-            - Callbacks to internal IP addresses are prohibited (127.0.0.1,
-            10.x.x.x, 172.16-31.x.x, 192.168.x.x, etc.)
+            - Internal IP addresses are prohibited (127.0.0.1, 10.x.x.x,
+            172.16-31.x.x, 192.168.x.x, etc.)
 
             - URL length must not exceed `2048` characters
 
@@ -301,14 +280,13 @@ components:
 
             - Timeout: `10` seconds
 
-            - Up to `3` retries after failure (retries at `1`/`2`/`4` seconds
-            after failure)
+            - Maximum `3` retries after failure (at `1`/`2`/`4` seconds after
+            failure)
 
-            - Callback response format is consistent with the task query API
-            response
+            - Callback response format is consistent with task query API
 
-            - 2xx status codes are considered successful, other status codes
-            trigger retries
+            - 2xx status code is considered successful, other codes trigger
+            retry
           format: uri
           example: https://your-domain.com/webhooks/video-task-completed
     VideoGenerationResponse:
@@ -325,7 +303,7 @@ components:
         model:
           type: string
           description: Actual model name used
-          example: wan2.6-image-to-video
+          example: kling-o1-image-to-video
         object:
           type: string
           enum:
@@ -359,7 +337,7 @@ components:
           description: Task output type
           example: video
         usage:
-          $ref: '#/components/schemas/Usage'
+          $ref: '#/components/schemas/VideoUsage'
           description: Usage and billing information
     ErrorResponse:
       type: object
@@ -369,19 +347,23 @@ components:
           properties:
             code:
               type: integer
-              description: Error code
+              description: HTTP status error code
             message:
               type: string
-              description: Error message
+              description: Error description
+              example: Invalid request parameter
             type:
               type: string
               description: Error type
+              example: invalid_request_error
             param:
               type: string
-              description: Parameter that caused the error
+              description: Related parameter name
+              example: model
             fallback_suggestion:
               type: string
-              description: Suggested solution
+              description: Suggestion for error resolution
+              example: kling-o1-image-to-video
     VideoTaskInfo:
       type: object
       properties:
@@ -393,8 +375,12 @@ components:
           type: integer
           description: Estimated completion time (seconds)
           minimum: 0
-          example: 120
-    Usage:
+          example: 300
+        video_duration:
+          type: integer
+          description: Video duration (seconds)
+          example: 9
+    VideoUsage:
       type: object
       description: Usage and billing information
       properties:
@@ -408,15 +394,12 @@ components:
           example: per_call
         credits_reserved:
           type: number
-          description: Estimated credits consumption
+          description: Estimated credits consumed
           minimum: 0
-          example: 5
+          example: 7
         user_group:
           type: string
           description: User group category
-          enum:
-            - default
-            - vip
           example: default
   securitySchemes:
     bearerAuth:
@@ -429,8 +412,8 @@ components:
         **Get API Key:**
 
 
-        Visit the [API Key Management Page](https://evolink.ai/dashboard/keys)
-        to get your API Key
+        Visit [API Key Management Page](https://evolink.ai/dashboard/keys) to
+        get your API Key
 
 
         **Add to request header:**

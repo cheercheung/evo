@@ -49,7 +49,8 @@ export default function VideoGenerationForm({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const isImageToVideo = model === "wan2.6-image-to-video";
+  const isImageToVideo = model === "wan2.6-image-to-video" || model === "kling-o1-image-to-video";
+  const isKling = model === "kling-o1-image-to-video";
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,7 +111,11 @@ export default function VideoGenerationForm({
         >
           {VIDEO_MODELS.map((m) => (
             <option key={m} value={m}>
-              {m === "wan2.6-text-to-video" ? "文生视频 (text-to-video)" : "图生视频 (image-to-video)"}
+              {m === "wan2.6-text-to-video"
+                ? "WAN2.6 文生视频 (text-to-video)"
+                : m === "wan2.6-image-to-video"
+                ? "WAN2.6 图生视频 (image-to-video)"
+                : "Kling-O1 图生视频 (image-to-video)"}
             </option>
           ))}
         </select>
@@ -172,25 +177,28 @@ export default function VideoGenerationForm({
         <span className="text-[10px] text-black/50 text-right">{prompt.length}/1500</span>
       </div>
 
-      {/* Quality, Aspect Ratio (仅文生视频), Duration Grid */}
-      <div className={`grid grid-cols-1 gap-3 ${isImageToVideo ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-black/60">质量 quality</label>
-          <select
-            value={quality}
-            onChange={(e) => setQuality(e.target.value as VideoQuality)}
-            className="px-2 py-1.5 rounded border border-black/20 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
-          >
-            {VIDEO_QUALITIES.map((q) => (
-              <option key={q} value={q}>
-                {q} {q === "720p" ? "(标准)" : "(高清)"}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Quality, Aspect Ratio, Duration Grid */}
+      <div className={`grid grid-cols-1 gap-3 ${isKling ? "md:grid-cols-2" : isImageToVideo ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
+        {/* 质量 - Kling 不支持 */}
+        {!isKling && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-black/60">质量 quality</label>
+            <select
+              value={quality}
+              onChange={(e) => setQuality(e.target.value as VideoQuality)}
+              className="px-2 py-1.5 rounded border border-black/20 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            >
+              {VIDEO_QUALITIES.map((q) => (
+                <option key={q} value={q}>
+                  {q} {q === "720p" ? "(标准)" : "(高清)"}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        {/* 宽高比 - 仅文生视频模式 */}
-        {!isImageToVideo && (
+        {/* 宽高比 - 文生视频 或 Kling 图生视频支持 */}
+        {(!isImageToVideo || isKling) && (
           <div className="flex flex-col gap-1">
             <label className="text-xs text-black/60">宽高比 aspect_ratio</label>
             <select
@@ -198,7 +206,11 @@ export default function VideoGenerationForm({
               onChange={(e) => setAspectRatio(e.target.value as VideoAspectRatio)}
               className="px-2 py-1.5 rounded border border-black/20 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
             >
-              {VIDEO_ASPECT_RATIOS.map((ar) => (
+              {VIDEO_ASPECT_RATIOS.filter(ar => {
+                // Kling 只支持 16:9, 9:16, 1:1
+                if (isKling) return ["16:9", "9:16", "1:1"].includes(ar);
+                return true;
+              }).map((ar) => (
                 <option key={ar} value={ar}>
                   {ar}
                 </option>
@@ -214,7 +226,11 @@ export default function VideoGenerationForm({
             onChange={(e) => setDuration(Number(e.target.value) as VideoDuration)}
             className="px-2 py-1.5 rounded border border-black/20 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
           >
-            {VIDEO_DURATIONS.map((d) => (
+            {VIDEO_DURATIONS.filter(d => {
+              // Kling 只支持 5 或 10 秒
+              if (isKling) return d === 5 || d === 10;
+              return true;
+            }).map((d) => (
               <option key={d} value={d}>
                 {d}秒
               </option>
@@ -223,38 +239,40 @@ export default function VideoGenerationForm({
         </div>
       </div>
 
-      {/* Shot Type and Prompt Extend */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-black/60">镜头类型 shot_type</label>
-          <select
-            value={shotType}
-            onChange={(e) => setShotType(e.target.value as VideoShotType)}
-            className="px-2 py-1.5 rounded border border-black/20 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
-          >
-            {VIDEO_SHOT_TYPES.map((st) => (
-              <option key={st} value={st}>
-                {st === "single" ? "单镜头" : "多镜头"}
-              </option>
-            ))}
-          </select>
-          <span className="text-[10px] text-black/50">仅在启用智能提示词优化时生效</span>
-        </div>
+      {/* Shot Type and Prompt Extend - Kling 不支持 */}
+      {!isKling && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-black/60">镜头类型 shot_type</label>
+            <select
+              value={shotType}
+              onChange={(e) => setShotType(e.target.value as VideoShotType)}
+              className="px-2 py-1.5 rounded border border-black/20 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            >
+              {VIDEO_SHOT_TYPES.map((st) => (
+                <option key={st} value={st}>
+                  {st === "single" ? "单镜头" : "多镜头"}
+                </option>
+              ))}
+            </select>
+            <span className="text-[10px] text-black/50">仅在启用智能提示词优化时生效</span>
+          </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-black/60">智能提示词优化 prompt_extend</label>
-          <label className="flex items-center gap-2 mt-1">
-            <input
-              type="checkbox"
-              checked={promptExtend}
-              onChange={(e) => setPromptExtend(e.target.checked)}
-              className="w-4 h-4 rounded border-black/30 text-black focus:ring-black"
-            />
-            <span className="text-sm text-black/70">启用（推荐）</span>
-          </label>
-          <span className="text-[10px] text-black/50">启用后大模型会优化提示词，对简单描述效果更佳</span>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-black/60">智能提示词优化 prompt_extend</label>
+            <label className="flex items-center gap-2 mt-1">
+              <input
+                type="checkbox"
+                checked={promptExtend}
+                onChange={(e) => setPromptExtend(e.target.checked)}
+                className="w-4 h-4 rounded border-black/30 text-black focus:ring-black"
+              />
+              <span className="text-sm text-black/70">启用（推荐）</span>
+            </label>
+            <span className="text-[10px] text-black/50">启用后大模型会优化提示词，对简单描述效果更佳</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Callback URL */}
       <div className="flex flex-col gap-1">

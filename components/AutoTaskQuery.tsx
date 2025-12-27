@@ -19,6 +19,7 @@ export default function AutoTaskQuery({
   onResultsUpdate,
 }: AutoTaskQueryProps) {
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const onResultsUpdateRef = useRef(onResultsUpdate);
 
   useEffect(() => {
@@ -40,11 +41,30 @@ export default function AutoTaskQuery({
     }
   }, [taskData?.results?.join("|")]);
 
+  const fetchWithRetry = async (url: string, attempts = 5, baseDelay = 500) => {
+    let lastError: any;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res;
+      } catch (err) {
+        lastError = err;
+        if (i < attempts - 1) {
+          const backoff = baseDelay * Math.pow(2, i) + Math.random() * 100;
+          await new Promise((r) => setTimeout(r, backoff));
+        }
+      }
+    }
+    throw lastError;
+  };
+
   // 自动下载图片到本地
-  const downloadImage = async (url: string, index: number) => {
+  const downloadImage = async (url: string, index: number, manageState = true) => {
     try {
-      setDownloading(true);
-      const response = await fetch(url);
+      setDownloadError(null);
+      if (manageState) setDownloading(true);
+      const response = await fetchWithRetry(url);
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -56,8 +76,11 @@ export default function AutoTaskQuery({
       window.URL.revokeObjectURL(downloadUrl);
     } catch (err) {
       console.error("下载失败:", err);
+      setDownloadError("下载失败，请稍后重试或直接打开图片链接。");
+      // 作为兜底，尝试直接打开链接
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
     } finally {
-      setDownloading(false);
+      if (manageState) setDownloading(false);
     }
   };
 
@@ -67,7 +90,12 @@ export default function AutoTaskQuery({
     
     setDownloading(true);
     for (let i = 0; i < taskData.results.length; i++) {
-      await downloadImage(taskData.results[i], i);
+      try {
+        await downloadImage(taskData.results[i], i, false);
+      } catch (err) {
+        console.error("批量下载单张失败:", err);
+        setDownloadError("部分图片下载失败，已尝试重试。可点击单张按钮或直接打开链接。");
+      }
       // 延迟一下，避免同时下载太多
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
@@ -100,12 +128,12 @@ export default function AutoTaskQuery({
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-400">状态：</span>
           <span
-            className={`px-3 py-1 text-sm border ${
+            className={`px-3 py-1 text-sm rounded-full border ${
               taskData.status === "completed"
-                ? "bg-green-900/20 border-green-900 text-green-400"
+                ? "bg-green-50 border-green-200 text-green-700"
                 : taskData.status === "failed"
-                ? "bg-red-900/20 border-red-900 text-red-400"
-                : "bg-yellow-900/20 border-yellow-900 text-yellow-400"
+                ? "bg-red-50 border-red-200 text-red-700"
+                : "bg-yellow-50 border-yellow-200 text-yellow-700"
             }`}
           >
             {taskData.status} ({taskData.progress}%)
@@ -116,12 +144,18 @@ export default function AutoTaskQuery({
           <button
             onClick={downloadAllImages}
             disabled={downloading}
-            className="px-4 py-2 bg-white text-black text-sm hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-600 transition-colors"
+            className="px-4 py-2 text-sm rounded-full border border-black/10 bg-white text-black shadow-[0_8px_20px_rgba(0,0,0,0.05)] hover:border-black disabled:border-black/10 disabled:text-black/30 disabled:shadow-none transition-colors"
           >
             {downloading ? "下载中..." : `下载全部 (${taskData.results.length})`}
           </button>
         )}
       </div>
+
+      {downloadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {downloadError}
+        </div>
+      )}
 
       {/* Results */}
       {taskData.results && taskData.results.length > 0 && (
@@ -131,12 +165,12 @@ export default function AutoTaskQuery({
               <img
                 src={url}
                 alt={`Generated ${idx + 1}`}
-                className="w-full border border-gray-700"
+                className="w-full rounded-lg border border-black/10 shadow-sm"
               />
               <button
                 onClick={() => downloadImage(url, idx)}
                 disabled={downloading}
-                className="px-3 py-2 bg-black text-white text-sm border border-gray-700 hover:border-white disabled:opacity-50 transition-colors"
+                className="px-3 py-2 text-sm rounded-full border border-black/10 bg-white text-black shadow-[0_8px_20px_rgba(0,0,0,0.05)] hover:border-black disabled:border-black/10 disabled:text-black/40 disabled:shadow-none transition-colors"
               >
                 下载图片 {idx + 1}
               </button>
