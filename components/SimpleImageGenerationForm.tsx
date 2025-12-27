@@ -133,7 +133,7 @@ export default function SimpleImageGenerationForm({
         <div className="flex flex-wrap gap-2">
           {(isSeedream ? SEEDREAM_SIZES : SIZES).map((s) => {
             // 为 Seedream 尺寸添加友好的显示名称
-            let displayName = s;
+            let displayName: string = s;
             if (isSeedream && s !== "2K" && s !== "4K") {
               const sizeMap: Record<string, string> = {
                 "2048x2048": "1:1 (2K)",
@@ -147,7 +147,7 @@ export default function SimpleImageGenerationForm({
                 "4096x2304": "16:9 横向 (4K)",
                 "2304x4096": "9:16 竖向 (4K)",
               };
-              displayName = sizeMap[s] || s;
+              displayName = sizeMap[s as string] || s;
             }
 
             return (
