@@ -27,8 +27,15 @@ interface CategoryConfig {
   defaultImageName: string;
   needsLogoUpload: boolean;
   inputs: { key: string; label: string; placeholder: string }[];
-  promptTemplate: string;
   sampleImagePath?: string; // 效果示例图片路径
+}
+
+// 提示词模板类型
+interface PromptTemplate {
+  id: string;
+  name: string;
+  description: string;
+  template: string;
 }
 
 const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
@@ -41,7 +48,6 @@ const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
     inputs: [
       { key: "text1", label: "封面文字", placeholder: '例如: "AI Tutorial #1"' }
     ],
-    promptTemplate: `Create a thumbnail showing a surprised woman standing in a softly lit, dramatically dramatic environment with shimmering light in the background. She holds a bright yellow banana in both hands, seemingly captivated by it. The image uses cool-toned, cinematic lighting. The girl's mouth is agape, her face filled with amazement. On the right side of the image, prominent yellow text reads {text1} with a smaller white line above it reading "Nano banana tutorial" A white dotted arrow points to the glowing banana.`,
     sampleImagePath: "/sample_photo/nbptutorial.jpg",
   },
   "product-logo": {
@@ -54,10 +60,6 @@ const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
       { key: "text1", label: "主标题 (黄色大字)", placeholder: '例如: "NEW PRODUCT"' },
       { key: "text2", label: "副标题 (白色小字)", placeholder: '例如: "Coming Soon"' }
     ],
-    promptTemplate: `Create a thumbnail showing a surprised woman(reference girl photo) standing in a cozy Christmas atmosphere with decorated Christmas trees, warm glowing lights, red and gold ornaments, soft snowfall, and a festive holiday glow.
-She holds a bright logo(reference logo photo) in both hands, seemingly captivated by it.
-The image uses cool-toned, cinematic lighting.The girl's mouth is agape, her face filled with amazement.
-On the right side of the image, prominent yellow text reads "{text1}" with a smaller white line above it reading "{text2}" A white dotted arrow points to the glowing logo.`,
     sampleImagePath: "/sample_photo/logo-product-sanmple.png",
   },
 };
@@ -100,12 +102,21 @@ export default function NBCoverPage() {
   const [presetReferencePhotos, setPresetReferencePhotos] = useState<string[]>([]);
   const [loadingPresetPhotos, setLoadingPresetPhotos] = useState(false);
 
+  // 提示词模板
+  const [promptTemplates, setPromptTemplates] = useState<Record<string, PromptTemplate[]>>({});
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
   // 生成状态
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
 
   const currentCategory = CATEGORIES[selectedCategory];
+
+  // 获取当前分类的模板列表和选中的模板
+  const currentTemplates = promptTemplates[selectedCategory] || [];
+  const currentTemplate = currentTemplates.find(t => t.id === selectedTemplateId) || currentTemplates[0];
 
   // 加载预设 Logo 列表
   useEffect(() => {
@@ -149,6 +160,25 @@ export default function NBCoverPage() {
     loadPresetPhotos();
   }, []);
 
+  // 加载提示词模板
+  useEffect(() => {
+    const loadTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        const response = await fetch("/api/prompt-templates");
+        const data = await response.json();
+        console.log("提示词模板:", data.templates);
+        setPromptTemplates(data.templates || {});
+      } catch (err) {
+        console.error("加载提示词模板失败:", err);
+        setPromptTemplates({});
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    loadTemplates();
+  }, []);
+
   // 切换分类时重置状态
   useEffect(() => {
     setInputValues({});
@@ -156,6 +186,7 @@ export default function NBCoverPage() {
     setLogoPreviewUrl(null);
     setReferenceImageUrl(null);
     setReferencePreviewSrc(currentCategory.defaultImagePath);
+    setSelectedTemplateId("default"); // 重置模板选择
     setGenError(null);
   }, [selectedCategory]);
 
@@ -333,10 +364,15 @@ export default function NBCoverPage() {
     setGenLoading(true);
 
     try {
-      // 构建提示词
-      let prompt = currentCategory.promptTemplate;
+      // 构建提示词 - 使用选中的模板
+      if (!currentTemplate) {
+        setGenError("请选择一个提示词模板");
+        setGenLoading(false);
+        return;
+      }
+      let prompt = currentTemplate.template;
       for (const input of currentCategory.inputs) {
-        prompt = prompt.replace(`{${input.key}}`, inputValues[input.key]?.trim() || "");
+        prompt = prompt.replace(new RegExp(`\\{${input.key}\\}`, 'g'), inputValues[input.key]?.trim() || "");
       }
 
       // 构建图片 URL 列表
@@ -539,6 +575,39 @@ export default function NBCoverPage() {
                     <p className="font-medium">{currentCategory.name}</p>
                     <p>默认参考图自动上传，可直接生成或在步骤 2 替换素材。</p>
                   </div>
+                </div>
+              </div>
+
+              {/* 步骤 1.5: 提示词模板选择 */}
+              <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.06)]">
+                <div className="text-[13px] font-medium text-black">1.5 风格选择</div>
+                <p className="mt-2 text-xs text-black/60">选择不同的风格模板来生成不同效果的封面。</p>
+                <div className="mt-4">
+                  {loadingTemplates ? (
+                    <div className="text-xs text-black/60">加载模板中...</div>
+                  ) : currentTemplates.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {currentTemplates.map((template) => (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => setSelectedTemplateId(template.id)}
+                          className={`rounded-xl p-4 text-left transition-all ${
+                            selectedTemplateId === template.id
+                              ? "bg-black text-white shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
+                              : "border border-black/10 bg-white text-black hover:border-black/30 shadow-[0_6px_16px_rgba(0,0,0,0.05)]"
+                          }`}
+                        >
+                          <div className="text-sm font-medium">{template.name}</div>
+                          <div className={`mt-1 text-xs ${selectedTemplateId === template.id ? "text-white/70" : "text-black/50"}`}>
+                            {template.description}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-black/60">暂无可用模板</div>
+                  )}
                 </div>
               </div>
 

@@ -1,0 +1,49 @@
+{
+  "nb-tutorial": [
+    {
+      "id": "default",
+      "name": "默认模板",
+      "description": "惊讶女孩手持香蕉",
+      "template": "Create a thumbnail showing a surprised woman standing in a softly lit, dramatically dramatic environment with shimmering light in the background. She holds a bright yellow banana in both hands, seemingly captivated by it. The image uses cool-toned, cinematic lighting. The girl's mouth is agape, her face filled with amazement. On the right side of the image, prominent yellow text reads {text1} with a smaller white line above it reading \"Nano banana tutorial\" A white dotted arrow points to the glowing banana."
+    },
+    {
+      "id": "neon",
+      "name": "霓虹灯风格",
+      "description": "赛博朋克霓虹灯背景",
+      "template": "Create a thumbnail showing a surprised woman in a cyberpunk neon-lit environment with pink and blue neon lights glowing in the background. She holds a bright glowing yellow banana in both hands, looking amazed. The image has a futuristic, high-tech aesthetic with dramatic lighting. The girl's expression shows pure amazement. On the right side, prominent yellow neon-style text reads {text1} with a smaller white glowing line above it reading \"Nano banana tutorial\". A dotted arrow made of light points to the glowing banana."
+    },
+    {
+      "id": "nature",
+      "name": "自然风格",
+      "description": "户外阳光自然背景",
+      "template": "Create a thumbnail showing a surprised woman standing in a beautiful natural outdoor setting with soft golden sunlight filtering through trees. She holds a bright yellow banana in both hands, looking delighted. The image has warm, natural lighting with a bokeh background. The girl's expression is joyful and amazed. On the right side, prominent yellow text reads {text1} with a smaller white line above it reading \"Nano banana tutorial\". A white dotted arrow points to the banana."
+    }
+  ],
+  "product-logo": [
+    {
+      "id": "christmas",
+      "name": "圣诞节风格",
+      "description": "温馨圣诞节氛围",
+      "template": "Create a thumbnail showing a surprised woman(reference girl photo) standing in a cozy Christmas atmosphere with decorated Christmas trees, warm glowing lights, red and gold ornaments, soft snowfall, and a festive holiday glow.\nShe holds a bright logo(reference logo photo) in both hands, seemingly captivated by it.\nThe image uses cool-toned, cinematic lighting.The girl's mouth is agape, her face filled with amazement.\nOn the right side of the image, prominent yellow text reads \"{text1}\" with a smaller white line above it reading \"{text2}\" A white dotted arrow points to the glowing logo."
+    },
+    {
+      "id": "modern",
+      "name": "现代简约",
+      "description": "简洁现代背景",
+      "template": "Create a thumbnail showing a surprised woman standing in a modern minimalist studio with soft gradient background in white and light gray. She holds a bright logo in both hands, looking amazed and excited. The image uses clean, professional lighting. The girl's expression shows genuine excitement. On the right side, prominent yellow text reads \"{text1}\" with a smaller white line above it reading \"{text2}\". A sleek dotted arrow points to the glowing logo."
+    },
+    {
+      "id": "tech",
+      "name": "科技风格",
+      "description": "高科技未来感",
+      "template": "Create a thumbnail showing a surprised woman in a high-tech futuristic environment with holographic displays and blue digital particles floating around. She holds a glowing logo in both hands, looking captivated. The image has a sci-fi, technological aesthetic with dramatic blue and white lighting. On the right side, prominent yellow digital text reads \"{text1}\" with a smaller white glowing line above it reading \"{text2}\". A high-tech dotted arrow points to the logo."
+    },
+    {
+      "id": "sunset",
+      "name": "日落风格",
+      "description": "温暖的日落氛围",
+      "template": "Create a thumbnail showing a surprised woman standing against a beautiful sunset backdrop with warm orange and pink hues in the sky. She holds a bright logo in both hands, looking amazed. The image uses warm, golden hour lighting that creates a dreamy atmosphere. On the right side, prominent yellow text reads \"{text1}\" with a smaller white line above it reading \"{text2}\". A white dotted arrow points to the glowing logo."
+    }
+  ]
+}
+
