@@ -18,7 +18,7 @@ interface Task {
 }
 
 // 分类配置
-type CategoryKey = "nb-tutorial" | "product-logo";
+type CategoryKey = "nb-tutorial" | "product-logo" | "non-logo";
 
 interface CategoryConfig {
   name: string;
@@ -56,6 +56,18 @@ const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
     defaultImagePath: "/referrence photo/cheer/product-logo-default.png",
     defaultImageName: "product-logo-default.png",
     needsLogoUpload: true,
+    inputs: [
+      { key: "text1", label: "主标题 (黄色大字)", placeholder: '例如: "NEW PRODUCT"' },
+      { key: "text2", label: "副标题 (白色小字)", placeholder: '例如: "Coming Soon"' }
+    ],
+    sampleImagePath: "/sample_photo/logo-product-sanmple.png",
+  },
+  "non-logo": {
+    name: "无 Logo",
+    description: "无 Logo 展示封面",
+    defaultImagePath: "/referrence photo/cheer/product-logo-default.png",
+    defaultImageName: "product-logo-default.png",
+    needsLogoUpload: false,
     inputs: [
       { key: "text1", label: "主标题 (黄色大字)", placeholder: '例如: "NEW PRODUCT"' },
       { key: "text2", label: "副标题 (白色小字)", placeholder: '例如: "Coming Soon"' }
