@@ -4,6 +4,7 @@
 import React, { useState, useRef } from "react";
 import { MODELS, SIZES, QUALITIES, SEEDREAM_SIZES } from "@/types/evolink";
 import type { Model, Size, Quality, SeedreamSize } from "@/types/evolink";
+import ReferencePhotoSelector from "./ReferencePhotoSelector";
 
 interface SimpleImageGenerationFormProps {
   apiKey: string;
@@ -13,6 +14,7 @@ interface SimpleImageGenerationFormProps {
     size: Size | SeedreamSize;
     quality: Quality;
     imageFiles: File[];
+    referencePhotos: string[]; // 预设参考图片 URL
   }) => void;
   loading: boolean;
   error: string | null;
@@ -31,10 +33,13 @@ export default function SimpleImageGenerationForm({
   const [size, setSize] = useState<Size | SeedreamSize>("auto");
   const [quality, setQuality] = useState<Quality>("2K");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [referencePhotos, setReferencePhotos] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isSeedream = model === "doubao-seedream-4.5";
+  const maxImages = isSeedream ? 14 : 10;
+  const totalImages = imageFiles.length + referencePhotos.length;
 
   // 当切换到 Seedream 模型时，自动切换到合适的尺寸
   const handleModelChange = (newModel: Model) => {
@@ -50,7 +55,7 @@ export default function SimpleImageGenerationForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ model, prompt, size, quality, imageFiles });
+    onSubmit({ model, prompt, size, quality, imageFiles, referencePhotos });
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -209,18 +214,37 @@ export default function SimpleImageGenerationForm({
         />
       </div>
 
-      {/* Image Upload Area */}
+      {/* Reference Photo Selector */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-black/80">
-          参考图片（可选，最多 {isSeedream ? 14 : 10} 张）
+          参考图片（可选，已选 {totalImages}/{maxImages} 张）
         </label>
+
+        {/* 预设参考图片选择 */}
+        <ReferencePhotoSelector
+          selectedPhotos={referencePhotos}
+          onSelectionChange={(photos) => {
+            // 确保总数不超过限制
+            const maxAllowed = maxImages - imageFiles.length;
+            setReferencePhotos(photos.slice(0, maxAllowed));
+          }}
+          maxPhotos={maxImages - imageFiles.length}
+        />
+
+        {/* 或者上传自己的图片 */}
+        <div className="flex items-center gap-2 text-xs text-black/50 my-1">
+          <div className="flex-1 h-px bg-black/10"></div>
+          <span>或上传自己的图片</span>
+          <div className="flex-1 h-px bg-black/10"></div>
+        </div>
+
         <div
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`relative border-2 border-dashed p-8 cursor-pointer transition-colors rounded-2xl ${
+          className={`relative border-2 border-dashed p-6 cursor-pointer transition-colors rounded-2xl ${
             dragActive
               ? "border-black bg-black/5"
               : "border-black/20 hover:border-black"
@@ -234,13 +258,10 @@ export default function SimpleImageGenerationForm({
             onChange={handleFileSelect}
             className="hidden"
           />
-          <div className="flex flex-col items-center gap-2 text-center">
-            <div className="text-4xl">📁</div>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <div className="text-2xl">📁</div>
             <div className="text-sm text-black">
-              拖拽图片到这里或点击上传
-            </div>
-            <div className="text-xs text-black/60">
-              支持多张图片，最多 {isSeedream ? 14 : 10} 张
+              拖拽图片或点击上传
             </div>
           </div>
         </div>

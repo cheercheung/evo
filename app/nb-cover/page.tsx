@@ -35,7 +35,7 @@ const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
   "nb-tutorial": {
     name: "NB 教程封面",
     description: "Nano Banana 教程封面",
-    defaultImagePath: "/referrence photo/nbptutorial.jpeg",
+    defaultImagePath: "/referrence photo/cheer/nbptutorial.jpeg",
     defaultImageName: "nbptutorial.jpeg",
     needsLogoUpload: false,
     inputs: [
@@ -47,7 +47,7 @@ const CATEGORIES: Record<CategoryKey, CategoryConfig> = {
   "product-logo": {
     name: "产品 Logo",
     description: "产品 Logo 展示封面",
-    defaultImagePath: "/referrence photo/product-logo-default.png",
+    defaultImagePath: "/referrence photo/cheer/product-logo-default.png",
     defaultImageName: "product-logo-default.png",
     needsLogoUpload: true,
     inputs: [
@@ -96,6 +96,10 @@ export default function NBCoverPage() {
   const [presetLogos, setPresetLogos] = useState<{ name: string; path: string }[]>([]);
   const [loadingPresetLogos, setLoadingPresetLogos] = useState(false);
 
+  // 预设参考图列表
+  const [presetReferencePhotos, setPresetReferencePhotos] = useState<string[]>([]);
+  const [loadingPresetPhotos, setLoadingPresetPhotos] = useState(false);
+
   // 生成状态
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -125,6 +129,25 @@ export default function NBCoverPage() {
     };
     loadPresetLogos();
   }, [selectedCategory, currentCategory.needsLogoUpload]);
+
+  // 加载预设参考图列表
+  useEffect(() => {
+    const loadPresetPhotos = async () => {
+      setLoadingPresetPhotos(true);
+      try {
+        const response = await fetch("/api/reference-photos");
+        const data = await response.json();
+        console.log("预设参考图列表:", data.photos);
+        setPresetReferencePhotos(data.photos || []);
+      } catch (err) {
+        console.error("加载预设参考图失败:", err);
+        setPresetReferencePhotos([]);
+      } finally {
+        setLoadingPresetPhotos(false);
+      }
+    };
+    loadPresetPhotos();
+  }, []);
 
   // 切换分类时重置状态
   useEffect(() => {
@@ -222,6 +245,33 @@ export default function NBCoverPage() {
     } catch (err: any) {
       console.error("参考图上传失败:", err);
       setGenError("参考图上传失败: " + (err.message || "未知错误"));
+      setReferencePreviewSrc(currentCategory.defaultImagePath);
+    } finally {
+      setReferenceUploading(false);
+    }
+  };
+
+  // 选择预设参考图
+  const handleSelectPresetPhoto = async (photoPath: string) => {
+    setReferencePreviewSrc(photoPath);
+    setReferenceUploading(true);
+    setGenError(null);
+
+    try {
+      // 获取预设参考图并上传
+      const response = await fetch(photoPath);
+      if (!response.ok) throw new Error("无法加载预设参考图");
+      const blob = await response.blob();
+      const fileName = photoPath.split("/").pop() || "preset-reference.jpg";
+      const file = new File([blob], fileName, { type: blob.type });
+
+      const uploadToken = effectiveUploadToken;
+      const uploadResponse = await client.uploadFile(file, { uploadPath: "nb-cover", authToken: uploadToken });
+      setReferenceImageUrl(uploadResponse.data.file_url);
+      console.log("预设参考图上传成功:", uploadResponse.data.file_url);
+    } catch (err: any) {
+      console.error("预设参考图上传失败:", err);
+      setGenError("预设参考图上传失败: " + (err.message || "未知错误"));
       setReferencePreviewSrc(currentCategory.defaultImagePath);
     } finally {
       setReferenceUploading(false);
@@ -495,16 +545,52 @@ export default function NBCoverPage() {
               <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.06)]">
                 <div className="text-[13px] font-medium text-black">2． 素材上传</div>
                 <div className="mt-4 space-y-4">
-                  <div className="rounded-[16px] border border-dashed border-black/20 bg-black/[0.03] p-4">
-                    <div className="flex items-center justify-between text-sm text-black">
-                      <span>默认参考图</span>
-                      <span className="text-xs text-black/60">{referenceImageUrl ? "✅ 已上传" : "⏳ 上传中"}</span>
-                    </div>
-                    <p className="mt-2 text-xs text-black/60">系统自动上传，生成时会作为基础参考图。</p>
-                  </div>
+                  {/* 预设参考图选择器 */}
                   <div className="rounded-[16px] border border-black/10 bg-black/[0.03] p-4">
                     <div className="flex items-center justify-between text-sm text-black">
-                      <span>参考图上传/替换</span>
+                      <span>预设参考图</span>
+                      {referenceUploading && <span className="text-[11px] text-black/60">上传中...</span>}
+                    </div>
+                    <div className="mt-3 min-h-[80px]">
+                      {loadingPresetPhotos ? (
+                        <div className="text-xs text-black/60">加载中...</div>
+                      ) : presetReferencePhotos.length > 0 ? (
+                        <div className="grid grid-cols-4 gap-2">
+                          {presetReferencePhotos.map((photo) => (
+                            <button
+                              key={photo}
+                              type="button"
+                              onClick={() => handleSelectPresetPhoto(photo)}
+                              disabled={referenceUploading}
+                              className={`relative aspect-[9/16] overflow-hidden rounded-lg border-2 transition-all ${
+                                referencePreviewSrc === photo
+                                  ? "border-black ring-2 ring-black/20"
+                                  : "border-transparent hover:border-black/30"
+                              } ${referenceUploading ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                              <img
+                                src={photo}
+                                alt=""
+                                className="absolute inset-0 h-full w-full object-cover"
+                              />
+                              {referencePreviewSrc === photo && (
+                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                  <span className="text-white text-lg">✓</span>
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-black/60">暂无预设参考图</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 上传自定义参考图 */}
+                  <div className="rounded-[16px] border border-black/10 bg-black/[0.03] p-4">
+                    <div className="flex items-center justify-between text-sm text-black">
+                      <span>上传自定义参考图</span>
                       {referenceUploading && <span className="text-[11px] text-black/60">上传中...</span>}
                     </div>
                     <div className="mt-3 flex items-center gap-4">
@@ -515,7 +601,7 @@ export default function NBCoverPage() {
                           className="absolute inset-0 h-full w-full object-cover"
                         />
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/40 to-transparent" />
-                        <div className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[10px] text-white">参考</div>
+                        <div className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[10px] text-white">当前</div>
                       </div>
                       <div className="flex flex-col gap-2">
                         <input
@@ -534,10 +620,9 @@ export default function NBCoverPage() {
                               : "border border-black text-black hover:bg-black hover:text-white"
                           }`}
                         >
-                          {referenceUploading ? "上传中..." : "📁 上传/替换参考图"}
+                          {referenceUploading ? "上传中..." : "📁 上传自定义图片"}
                         </label>
                         <span className="text-[10px] text-black/60">支持 JPEG/PNG/GIF/WebP</span>
-                        {referenceImageUrl && <span className="text-xs text-black">✅ 已上传自定义参考图</span>}
                       </div>
                     </div>
                   </div>

@@ -21,6 +21,7 @@ export default function SimpleImageToolPage() {
     size: any;
     quality: any;
     imageFiles: File[];
+    referencePhotos: string[];
   }) => {
     if (!effectiveApiKey) {
       setGenError("请先在 .env.local 中设置 API Key");
@@ -32,15 +33,26 @@ export default function SimpleImageToolPage() {
     setTaskId("");
 
     try {
-      // 先上传所有图片
-      const imageUrls: string[] = [];
+      // 先上传所有用户上传的图片
+      const uploadedUrls: string[] = [];
       for (const file of data.imageFiles) {
         const uploadResponse = await client.uploadFile(file, {
           uploadPath: "image-generation",
           authToken: effectiveUploadToken,
         });
-        imageUrls.push(uploadResponse.data.file_url);
+        uploadedUrls.push(uploadResponse.data.file_url);
       }
+
+      // 将预设参考图片转换为完整 URL
+      const referenceUrls = data.referencePhotos.map((photo) => {
+        if (photo.startsWith("/")) {
+          return `${window.location.origin}${photo}`;
+        }
+        return photo;
+      });
+
+      // 合并所有图片 URL
+      const allImageUrls = [...uploadedUrls, ...referenceUrls];
 
       // 创建生成任务
       // Seedream 模型不支持 quality 参数，只使用 size
@@ -50,7 +62,7 @@ export default function SimpleImageToolPage() {
         prompt: data.prompt,
         size: data.size,
         quality: isSeedream ? undefined : data.quality,
-        image_urls: imageUrls.length > 0 ? imageUrls : undefined,
+        image_urls: allImageUrls.length > 0 ? allImageUrls : undefined,
       });
 
       setTaskId(response.id);
